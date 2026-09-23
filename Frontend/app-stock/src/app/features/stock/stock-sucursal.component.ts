@@ -193,8 +193,8 @@ export class StockSucursalComponent implements OnInit {
     return this.productosConsolidados.length;
   }
 
-  get totalUnidades(): number {
-    return this.productosConsolidados.reduce((acc, p) => acc + p.stock_total, 0);
+  get totalSedes(): number {
+    return this.sucursales.length;
   }
 
   get articulosOptimos(): number {
