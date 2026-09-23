@@ -1,5 +1,7 @@
 # CodeLab_Stock: sistema de gestión de stock
 
+[![Frontend en Vercel](https://img.shields.io/badge/Frontend-Vercel-black?style=flat&logo=vercel)](https://todo-stock.vercel.app/)
+[![Backend en Alwaysdata](https://img.shields.io/badge/Backend-Alwaysdata-blue?style=flat)](https://todostock.alwaysdata.net/api/)
 ![Static Badge](https://img.shields.io/github/last-commit/ISPC-WEB-2025/CodeLab?label=Último%20cambio&color=blue)
 
 ## 1. Descripción del proyecto
@@ -179,7 +181,28 @@ python manage.py runserver
 
 ---
 
-## 3. Uso básico
+## 3. Despliegue en producción y uso básico
+
+### 🌐 Aplicación en Producción (En vivo)
+
+| Componente | Plataforma | URL pública |
+| :--- | :--- | :--- |
+| **Frontend (Web SPA)** | Vercel | [https://todo-stock.vercel.app/](https://todo-stock.vercel.app/) |
+| **Backend (API REST)** | Alwaysdata | [https://todostock.alwaysdata.net/api/](https://todostock.alwaysdata.net/api/) |
+| **Panel de Administración** | Alwaysdata | [https://todostock.alwaysdata.net/admin/](https://todostock.alwaysdata.net/admin/) |
+
+#### 🔑 Credenciales de Acceso Demo
+
+Para probar y evaluar la plataforma en producción, puedes utilizar la cuenta de administrador preconfigurada:
+- **Email:** `admin@codelab.com`
+- **Contraseña:** `AdminPassword123!`
+- **Rol:** `ADMINISTRADOR` (Acceso completo a Dashboard, Gestión de Productos, Proveedores, Sucursales, Usuarios y Configuración de Stock).
+
+---
+
+### 💻 Entorno de Desarrollo Local
+
+Si deseas ejecutar el proyecto localmente en tu entorno de desarrollo:
 
 - Backend corre en <http://127.0.0.1:8000/>
 - API de inventario en <http://127.0.0.1:8000/api/inventario/>
@@ -187,8 +210,6 @@ python manage.py runserver
 - API de usuarios en <http://127.0.0.1:8000/api/usuarios/>
 - Panel de administración en <http://127.0.0.1:8000/admin/>
 - Frontend corre en <http://localhost:4200/>
-
-- Vista previa de la página: [CodeLab](https://ispc-web-2025.github.io/CodeLab/)
 
 ## 4. Lista de requerimientos
 
@@ -214,9 +235,9 @@ python manage.py runserver
 | **RNF3** | **Usabilidad**    | La interfaz debe adaptarse correctamente a dispositivos móviles, tablets y escritorio, garantizando que todos los elementos sean legibles e interactuables sin desplazamiento horizontal. Compatible con Chrome ≥ 110, Firefox ≥ 110, Safari ≥ 16 y Edge ≥ 110. |
 | **RNF4** | **Accesibilidad** | La plataforma debe ser accesible para usuarios con discapacidades visuales, motoras o cognitivas.                                                                                                                                                               |
 
-## 5. Tecnologías utilizadas
+## 5. Tecnologías y arquitectura
 
-- **Frontend:** Angular 21
-- **Backend:** Python y Django Rest Framework
-- **Base de Datos:** MySQL
+- **Frontend:** Angular 21 (Standalone components, TypeScript, RxJS, Bootstrap 5) — *Alojado en Vercel*
+- **Backend:** Python 3.10+, Django 6.0 y Django Rest Framework 3.17 — *Alojado en Alwaysdata*
+- **Base de Datos:** MySQL — *Alojada en Alwaysdata*
 - **Estilos:** CSS3 y Bootstrap (modales y notificaciones toast)
