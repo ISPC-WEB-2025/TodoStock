@@ -84,12 +84,17 @@
             [attr.disabled]="!formulario.get('id_suc')?.value ? true : null"
           >
             <option value="">
-              {{ formulario.get('id_suc')?.value ? '-- Seleccioná un producto --' : '-- Primero seleccioná una sucursal --' }}
+              {{ formulario.get('id_suc')?.value ? (productosFiltrados.length === 0 && formulario.get('tipo')?.value !== 'Entrada' ? '-- Sin productos con existencias en esta sede --' : '-- Seleccioná un producto --') : '-- Primero seleccioná una sucursal --' }}
             </option>
             @for (p of productosFiltrados; track p.id_art) {
             <option [value]="p.id_art">{{ p.nombre }} (Código: {{ p.codigo }})</option>
             }
           </select>
+          @if (formulario.get('id_suc')?.value && productosFiltrados.length === 0 && formulario.get('tipo')?.value !== 'Entrada') {
+          <div class="form-text text-warning mt-1">
+            ⚠️ Esta sucursal no posee productos con existencias disponibles para {{ formulario.get('tipo')?.value === 'Traslado' ? 'trasladar' : 'dar salida' }}.
+          </div>
+          }
           @if (formulario.get('id_art')?.invalid && formulario.get('id_art')?.touched) {
           <div class="invalid-feedback">El producto es obligatorio.</div>
           }
