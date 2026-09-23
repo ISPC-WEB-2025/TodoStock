@@ -40,7 +40,9 @@ export class CatalogoComponent implements OnInit {
   get productosFiltrados(): any[] {
     if (!this.sucursalSeleccionada) return this.productos;
     return this.productos.filter(p =>
-      this.stockTotal.some(s => s.id_art === p.id_art && s.id_suc === this.sucursalSeleccionada)
+      this.stockTotal.some(
+        s => s.id_art === p.id_art && s.id_suc === this.sucursalSeleccionada && Number(s.cantidad_stock) > 0
+      )
     );
   }
 

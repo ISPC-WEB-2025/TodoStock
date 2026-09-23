@@ -151,13 +151,20 @@ export class FormMovimientoComponent implements OnInit {
       // En una entrada se puede ingresar cualquier producto del catálogo
       this.productosFiltrados = [...this.todosLosProductos];
     } else {
-      // Para Salida o Traslado, filtramos los que tengan registro de stock
+      // Para Salida o Traslado, filtramos los que tengan existencias mayores a 0
       const idsProductos = this.todoElStock
-        .filter((s) => s.id_suc == idSucursal)
+        .filter((s) => s.id_suc == idSucursal && Number(s.cantidad_stock) > 0)
         .map((s) => s.id_art);
       this.productosFiltrados = this.todosLosProductos.filter(
         (p) => p.id_art !== undefined && idsProductos.includes(p.id_art)
       );
+    }
+
+    // Si el producto seleccionado previamente ya no está disponible, resetearlo
+    const idArtActual = this.formulario.get('id_art')?.value;
+    if (idArtActual && !this.productosFiltrados.some((p) => p.id_art == idArtActual)) {
+      this.formulario.get('id_art')?.reset('');
+      this.stockDisponible = null;
     }
   }
 
