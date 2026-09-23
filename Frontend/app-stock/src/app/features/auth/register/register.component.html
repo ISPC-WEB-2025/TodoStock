@@ -1,102 +1,210 @@
-<div class="bg-image container-fluid vh-100 d-flex justify-content-center align-items-center">
-    <div class="col-6 shadow-2-strong rounded-1 vh-50 bg-light px-2 py-2">
-        <a routerLink="/home">⟵ Volver al inicio</a>
-        <hr>
-        <h1 class="text-center mt-4 mb-4 fw-bold">{{creaTuCuenta}}</h1>
-        <main class="form-signin d-flex justify-content-center align-items-center">
-            <form [formGroup]="registerForm" (ngSubmit)="onEnviar($event)">
-                @if (registerErrored === true) {
-                <div class="form-control form-control-lg error-message text-muted login-error-danger my-2">
-                    {{registroError}}</div>
-                }
-                <div class="d-grid px-2 py-2">
-                    <div class="row align-items-start">
-                        <div class="d-flex flex-column gap-2 my-2 col">
-                            <label for="nombre" class="form-label"></label>
-                            <input type="text" class="form-control form-control-lg" name="nombre"
-                                formControlName="nombre" id="nombre" placeholder="Tu nombre de Usuario" required>
-                            @if (nombre?.errors && nombre?.touched) {
-                            <div class="text-danger">{{nombreVacio}}</div>
-                            }
-                        </div>
-                        <div class="d-flex flex-column gap-2 my-2 col">
-                            <label for="email" class="form-label"></label>
-                            <input type="email" class="form-control form-control-lg" name="email"
-                                formControlName="email" id="email" placeholder="Tu correo electronico" required>
-                            @if (email?.errors && email?.touched) {
-                            <div class="text-danger">{{email?.hasError("required") && !email?.hasError("email") ?
-                                emailVacio : email?.hasError("email") ? emailInvalido : errorDesconocido}}</div>
-                            }
-                        </div>
-                    </div>
-
-                    <div class="row align-items-start">
-                        <div class="d-flex flex-column gap-2 my-2 col">
-                            <label for="dni" class="form-label"></label>
-                            <input type="number" min="0" class="form-control form-control-lg" name="dni"
-                                formControlName="dni" id="dni" placeholder="Tu número de DNI" required>
-                            @if (dni?.errors && dni?.touched) {
-                            <div class="text-danger">{{dniInvalido}}</div>
-                            }
-                        </div>
-                        <div class="d-flex flex-column gap-2 mt-3 col">
-                            <label for="fdn" class="form-label"></label>
-                            <input type="date" class="form-control form-control-lg" name="fdn" formControlName="fdn"
-                                id="fdn" required>
-                            @if (fdn?.errors && fdn?.touched) {
-                            <div class="text-danger">{{fdnInvalido}}</div>
-                            }
-                        </div>
-                    </div>
-
-                    <div class="row align-items-start">
-                        <div class="d-flex flex-column gap-2 my-2 col">
-                            <label for="password" class="form-label"></label>
-                            <div class="input-group">
-                                <input [type]="esconderPassword ? 'password' : 'text'"
-                                    class="form-control form-control-lg" name="password" formControlName="password"
-                                    id="password" placeholder="Tu contraseña" required>
-                                <button type="button" (click)="alternarVisibilidadPassword()"
-                                    class="btn btn-outline-secondary">
-                                    <i [class]="esconderPassword ? 'bi bi-eye' : 'bi bi-eye-slash'"></i>
-                                </button>
-                            </div>
-                            @if (password?.errors && password?.touched && registerErrored) {
-                            <div class="text-danger">{{password?.hasError("required") &&
-                                !password?.hasError("minlength") ? passwordVacio :
-                                password?.hasError("minlength") ? passwordCorto :
-                                password?.hasError("mismatch") ? passwordNoCoincide : errorDesconocido}}
-                            </div>
-                            }
-                        </div>
-                        <div class="d-flex flex-column gap-2 my-2 col">
-                            <label for="confirm_password" class="form-label"></label>
-                            <div class="input-group">
-                                <input [type]="esconderPassword ? 'password' : 'text'"
-                                    class="form-control form-control-lg" name="confirm_password"
-                                    formControlName="confirm_password" id="confirm_password"
-                                    placeholder="Confirma tu contraseña" required>
-                                <button type="button" (click)="alternarVisibilidadPassword()"
-                                    class="btn btn-outline-secondary">
-                                    <i [class]="esconderPassword ? 'bi bi-eye' : 'bi bi-eye-slash'"></i>
-                                </button>
-                            </div>
-                            @if (c_password?.errors && c_password?.touched && registerErrored) {
-                            <div class="text-danger">{{c_password?.hasError("required") &&
-                                !c_password?.hasError("minlength") ? passwordVacio :
-                                c_password?.hasError("minlength") ? passwordCorto :
-                                c_password?.hasError("mismatch") ? passwordNoCoincide : errorDesconocido}}
-                            </div>
-                            }
-                        </div>
-                    </div>
-                    <div class="d-grid gap-2 col">
-                        <button class="btn btn-primary btn-lg ms-2 mt-4" type="submit">Crear cuenta</button>
-                    </div>
-                </div>
-            </form>
-        </main>
-        <hr>
-        <p class="text-center mt-3 text-muted small">¿Ya tenés cuenta? <a routerLink="/login">Inicia Sesión</a> </p>
+<div class="bg-image d-flex justify-content-center align-items-center p-3">
+  <div
+    class="col-12 col-sm-11 col-md-10 col-lg-8 col-xl-7 shadow rounded-4 bg-light px-3 px-sm-4 py-4 my-auto"
+  >
+    <div class="mb-2">
+      <a routerLink="/home" class="text-decoration-none small text-secondary"
+        >⟵ Volver al inicio</a
+      >
     </div>
+    <hr class="mt-0 mb-3" />
+
+    <h1 class="text-center mb-4 fw-bold fs-3">{{ creaTuCuenta }}</h1>
+
+    <main class="form-signin">
+      <form [formGroup]="registerForm" (ngSubmit)="onEnviar($event)">
+        @if (registerErrored === true) {
+          <div class="alert alert-danger py-2 text-center small mb-3">
+            {{ registroError }}
+          </div>
+        }
+
+        <div class="container-fluid p-0">
+          <!-- Fila 1: Nombre y Email -->
+          <div class="row g-3 mb-2">
+            <div class="col-12 col-md-6">
+              <label for="nombre" class="form-label small fw-semibold"
+                >Nombre de Usuario</label
+              >
+              <input
+                type="text"
+                class="form-control form-control-lg"
+                name="nombre"
+                formControlName="nombre"
+                id="nombre"
+                placeholder="Tu nombre"
+                required
+              />
+              @if (nombre?.errors && nombre?.touched) {
+                <div class="text-danger small mt-1">{{ nombreVacio }}</div>
+              }
+            </div>
+
+            <div class="col-12 col-md-6">
+              <label for="email" class="form-label small fw-semibold"
+                >Correo electrónico</label
+              >
+              <input
+                type="email"
+                class="form-control form-control-lg"
+                name="email"
+                formControlName="email"
+                id="email"
+                placeholder="correo@ejemplo.com"
+                required
+              />
+              @if (email?.errors && email?.touched) {
+                <div class="text-danger small mt-1">
+                  {{
+                    email?.hasError("required") && !email?.hasError("email")
+                      ? emailVacio
+                      : email?.hasError("email")
+                        ? emailInvalido
+                        : errorDesconocido
+                  }}
+                </div>
+              }
+            </div>
+          </div>
+
+          <!-- Fila 2: DNI y Fecha de Nacimiento -->
+          <div class="row g-3 mb-2">
+            <div class="col-12 col-md-6">
+              <label for="dni" class="form-label small fw-semibold"
+                >Número de DNI</label
+              >
+              <input
+                type="number"
+                min="0"
+                class="form-control form-control-lg"
+                name="dni"
+                formControlName="dni"
+                id="dni"
+                placeholder="Sin puntos"
+                required
+              />
+              @if (dni?.errors && dni?.touched) {
+                <div class="text-danger small mt-1">{{ dniInvalido }}</div>
+              }
+            </div>
+
+            <div class="col-12 col-md-6">
+              <label for="fdn" class="form-label small fw-semibold"
+                >Fecha de nacimiento</label
+              >
+              <input
+                type="date"
+                class="form-control form-control-lg"
+                name="fdn"
+                formControlName="fdn"
+                id="fdn"
+                required
+              />
+              @if (fdn?.errors && fdn?.touched) {
+                <div class="text-danger small mt-1">{{ fdnInvalido }}</div>
+              }
+            </div>
+          </div>
+
+          <!-- Fila 3: Contraseña y Confirmación -->
+          <div class="row g-3 mb-3">
+            <div class="col-12 col-md-6">
+              <label for="password" class="form-label small fw-semibold"
+                >Contraseña</label
+              >
+              <div class="input-group">
+                <input
+                  [type]="esconderPassword ? 'password' : 'text'"
+                  class="form-control form-control-lg"
+                  name="password"
+                  formControlName="password"
+                  id="password"
+                  placeholder="Tu contraseña"
+                  required
+                />
+                <button
+                  type="button"
+                  (click)="alternarVisibilidadPassword()"
+                  class="btn btn-outline-secondary"
+                >
+                  <i
+                    [class]="esconderPassword ? 'bi bi-eye' : 'bi bi-eye-slash'"
+                  ></i>
+                </button>
+              </div>
+              @if (password?.errors && password?.touched && registerErrored) {
+                <div class="text-danger small mt-1">
+                  {{
+                    password?.hasError("required") &&
+                    !password?.hasError("minlength")
+                      ? passwordVacio
+                      : password?.hasError("minlength")
+                        ? passwordCorto
+                        : password?.hasError("mismatch")
+                          ? passwordNoCoincide
+                          : errorDesconocido
+                  }}
+                </div>
+              }
+            </div>
+
+            <div class="col-12 col-md-6">
+              <label for="confirm_password" class="form-label small fw-semibold"
+                >Confirmar contraseña</label
+              >
+              <div class="input-group">
+                <input
+                  [type]="esconderPassword ? 'password' : 'text'"
+                  class="form-control form-control-lg"
+                  name="confirm_password"
+                  formControlName="confirm_password"
+                  id="confirm_password"
+                  placeholder="Repetí la contraseña"
+                  required
+                />
+                <button
+                  type="button"
+                  (click)="alternarVisibilidadPassword()"
+                  class="btn btn-outline-secondary"
+                >
+                  <i
+                    [class]="esconderPassword ? 'bi bi-eye' : 'bi bi-eye-slash'"
+                  ></i>
+                </button>
+              </div>
+              @if (
+                c_password?.errors && c_password?.touched && registerErrored
+              ) {
+                <div class="text-danger small mt-1">
+                  {{
+                    c_password?.hasError("required") &&
+                    !c_password?.hasError("minlength")
+                      ? passwordVacio
+                      : c_password?.hasError("minlength")
+                        ? passwordCorto
+                        : c_password?.hasError("mismatch")
+                          ? passwordNoCoincide
+                          : errorDesconocido
+                  }}
+                </div>
+              }
+            </div>
+          </div>
+
+          <!-- Botón de Registro -->
+          <div class="d-grid mt-4">
+            <button class="btn btn-primary btn-lg" type="submit">
+              Crear cuenta
+            </button>
+          </div>
+        </div>
+      </form>
+    </main>
+
+    <hr class="my-3" />
+    <p class="text-center mb-0 text-muted small">
+      ¿Ya tenés cuenta?
+      <a routerLink="/login" class="fw-semibold">Inicia Sesión</a>
+    </p>
+  </div>
 </div>
