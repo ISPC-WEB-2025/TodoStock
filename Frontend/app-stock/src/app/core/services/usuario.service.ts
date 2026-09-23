@@ -2,13 +2,14 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { Usuario } from '../models/usuario.model';
+import { environment } from '../../../environments/environment';
 
 @Injectable({
   providedIn: 'root'
 })
 export class UsuarioService {
   private http = inject(HttpClient);
-  private apiUrl = 'http://127.0.0.1:8000/api/usuarios/';
+  private apiUrl = `${environment.apiUrl}/usuarios/`;
 
   // 1. GET: Traer la lista completa de usuarios
   getUsuarios(): Observable<Usuario[]> {
