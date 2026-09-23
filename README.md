@@ -139,6 +139,7 @@ python setup_db.py
 ```
 
 Este script realiza de forma integral:
+
 1. Creación de la base de datos MySQL (si no existe).
 2. Ejecución de migraciones de Django.
 3. Carga automática de los roles base (`roles.json`: `ADMINISTRADOR`, `VENTAS`, `DEPOSITO`).
@@ -185,24 +186,21 @@ python manage.py runserver
 
 ### 🌐 Aplicación en Producción (En vivo)
 
-| Componente | Plataforma | URL pública |
-| :--- | :--- | :--- |
-| **Frontend (Web SPA)** | Vercel | [https://todo-stock.vercel.app/](https://todo-stock.vercel.app/) |
-| **Backend (API REST)** | Alwaysdata | [https://todostock.alwaysdata.net/api/](https://todostock.alwaysdata.net/api/) |
+| Componente                  | Plataforma | URL pública                                                                        |
+| :-------------------------- | :--------- | :--------------------------------------------------------------------------------- |
+| **Frontend (Web SPA)**      | Vercel     | [https://todo-stock.vercel.app/](https://todo-stock.vercel.app/)                   |
+| **Backend (API REST)**      | Alwaysdata | [https://todostock.alwaysdata.net/api/](https://todostock.alwaysdata.net/api/)     |
 | **Panel de Administración** | Alwaysdata | [https://todostock.alwaysdata.net/admin/](https://todostock.alwaysdata.net/admin/) |
 
-#### 🔑 Credenciales de Acceso Demo
+### 💻 Entorno de Desarrollo Local y Credenciales Demo
 
-Para probar y evaluar la plataforma en producción, puedes utilizar la cuenta de administrador preconfigurada:
+Si ejecutas el proyecto de manera local en tu máquina siguiendo los pasos de instalación anteriores, la base de datos se poblará automáticamente con la siguiente cuenta de administrador de prueba:
+
 - **Email:** `admin@codelab.com`
 - **Contraseña:** `AdminPassword123!`
 - **Rol:** `ADMINISTRADOR` (Acceso completo a Dashboard, Gestión de Productos, Proveedores, Sucursales, Usuarios y Configuración de Stock).
 
----
-
-### 💻 Entorno de Desarrollo Local
-
-Si deseas ejecutar el proyecto localmente en tu entorno de desarrollo:
+Las rutas locales operarán en:
 
 - Backend corre en <http://127.0.0.1:8000/>
 - API de inventario en <http://127.0.0.1:8000/api/inventario/>
@@ -237,7 +235,7 @@ Si deseas ejecutar el proyecto localmente en tu entorno de desarrollo:
 
 ## 5. Tecnologías y arquitectura
 
-- **Frontend:** Angular 21 (Standalone components, TypeScript, RxJS, Bootstrap 5) — *Alojado en Vercel*
-- **Backend:** Python 3.10+, Django 6.0 y Django Rest Framework 3.17 — *Alojado en Alwaysdata*
-- **Base de Datos:** MySQL — *Alojada en Alwaysdata*
+- **Frontend:** Angular 21 (Standalone components, TypeScript, RxJS, Bootstrap 5) — _Alojado en Vercel_
+- **Backend:** Python 3.10+, Django 6.0 y Django Rest Framework 3.17 — _Alojado en Alwaysdata_
+- **Base de Datos:** MySQL — _Alojada en Alwaysdata_
 - **Estilos:** CSS3 y Bootstrap (modales y notificaciones toast)
