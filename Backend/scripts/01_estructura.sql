@@ -29,6 +29,7 @@ CREATE TABLE SUCURSAL (
     id_suc    INT          NOT NULL AUTO_INCREMENT,
     nombre    VARCHAR(100) NOT NULL,
     direccion VARCHAR(300) NOT NULL,
+    es_central BOOLEAN     NOT NULL DEFAULT FALSE,
     PRIMARY KEY (id_suc)
 );
 

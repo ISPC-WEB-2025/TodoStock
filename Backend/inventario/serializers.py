@@ -9,7 +9,7 @@ from .models import (
     Movimiento,
 )
 from django.utils import timezone
-from django.db import models
+from django.db import models, transaction
 from django.db.models import Sum
 
 
@@ -134,6 +134,7 @@ class SucursalSerializer(serializers.ModelSerializer):
             "id_suc",
             "nombre",
             "direccion",
+            "es_central",
             "total_articulos",
             "articulos_con_stock",
             "articulos_sin_stock",
@@ -168,6 +169,35 @@ class SucursalSerializer(serializers.ModelSerializer):
                 f"Ya existe una sucursal con el nombre '{nombre_limpio}'."
             )
         return nombre_limpio
+
+    def create(self, validated_data):
+        # Auto-promoción: si no existe ninguna sede central registrada, marcar automáticamente como central
+        if not Sucursal.objects.filter(es_central=True).exists():
+            validated_data["es_central"] = True
+
+        es_central = validated_data.get("es_central", False)
+        with transaction.atomic():
+            if es_central:
+                # Garantía de unicidad: desmarcar sede central previa si se define una nueva
+                Sucursal.objects.filter(es_central=True).update(es_central=False)
+            return super().create(validated_data)
+
+    def update(self, instance, validated_data):
+        nuevo_es_central = validated_data.get("es_central", instance.es_central)
+
+        # Si se intenta desmarcar la única sede central sin asignar otra
+        if instance.es_central and not nuevo_es_central:
+            otras_centrales = Sucursal.objects.filter(es_central=True).exclude(pk=instance.pk).exists()
+            if not otras_centrales:
+                raise serializers.ValidationError(
+                    {"es_central": "No se puede desmarcar la Casa Central sin designar previamente otra sucursal como Central."}
+                )
+
+        with transaction.atomic():
+            if nuevo_es_central and not instance.es_central:
+                # Al promover una sede a central, desmarcar atómicamente la anterior
+                Sucursal.objects.filter(es_central=True).exclude(pk=instance.pk).update(es_central=False)
+            return super().update(instance, validated_data)
 
 
 class ProveedorSerializer(serializers.ModelSerializer):

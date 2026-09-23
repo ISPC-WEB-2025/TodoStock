@@ -145,3 +145,40 @@ class SucursalTests(TestCase):
         )
         self.assertEqual(len(response.data), 1)
         self.assertEqual(response.data[0]["nombre_producto"], "Taladro Percutor")
+
+    def test_bloqueo_eliminacion_casa_central(self):
+        """No debe permitir eliminar una sucursal si está designada como Casa Central."""
+        suc_central = Sucursal.objects.create(nombre="Sede Central Test", direccion="Av. Central 1", es_central=True)
+        response = self.client.delete(f"/api/inventario/sucursales/{suc_central.pk}/")
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("designada como Casa Central", response.data["error"])
+        self.assertTrue(Sucursal.objects.filter(pk=suc_central.pk).exists())
+
+    def test_auto_promocion_y_unicidad_casa_central(self):
+        """La primera sede creada debe auto-promoverse a central, y promover una nueva debe desmarcar la anterior."""
+        Sucursal.objects.filter(es_central=True).update(es_central=False)
+        res1 = self.client.post("/api/inventario/sucursales/", {"nombre": "Primera Sede Test", "direccion": "Dir 1"})
+        self.assertEqual(res1.status_code, status.HTTP_201_CREATED)
+        self.assertTrue(res1.data["es_central"])
+
+        res2 = self.client.post("/api/inventario/sucursales/", {"nombre": "Segunda Sede", "direccion": "Dir 2", "es_central": True})
+        self.assertEqual(res2.status_code, status.HTTP_201_CREATED)
+        self.assertTrue(res2.data["es_central"])
+
+        # La primera debe haber sido desmarcada
+        s1 = Sucursal.objects.get(pk=res1.data["id_suc"])
+        self.assertFalse(s1.es_central)
+
+    def test_bloqueo_entrada_proveedor_en_sucursal_no_central(self):
+        """Las compras a proveedores (Entrada) no deben permitirse en sucursales secundarias."""
+        suc_secundaria = Sucursal.objects.create(nombre="Sucursal Satelite", direccion="Calle Satelite 12", es_central=False)
+        payload = {
+            "id_art": self.producto.id_art,
+            "id_suc": suc_secundaria.id_suc,
+            "tipo": "Entrada",
+            "cantidad": 10,
+            "motivo": "Compra directa indebida",
+        }
+        response = self.client.post("/api/inventario/movimientos/", payload, format="json")
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("solo pueden recibirse en la Casa Central", response.data["error"])
