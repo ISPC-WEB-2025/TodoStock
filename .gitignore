@@ -60,6 +60,8 @@ cover/
 local_settings.py
 db.sqlite3
 db.sqlite3-journal
+staticfiles/
+Backend/staticfiles/
 
 # Flask stuff:
 instance/
@@ -213,6 +215,9 @@ package-lock.json
 .agents/
 skills/
 GEMINI.md
+CLAUDE.md
+specs/
+
 
 
 

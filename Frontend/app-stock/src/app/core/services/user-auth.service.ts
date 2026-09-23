@@ -2,14 +2,15 @@ import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, tap } from 'rxjs';
 import { Router } from '@angular/router';
+import { environment } from '../../../environments/environment';
 
 @Injectable({
   providedIn: 'root'
 })
 export class UserAuthService {
-  private loginURL = 'http://localhost:8000/api/usuarios/login/';
-  private registroURL = 'http://localhost:8000/api/usuarios/registro/';
-  private refreshURL = 'http://localhost:8000/api/usuarios/token/refresh/';
+  private loginURL = `${environment.apiUrl}/usuarios/login/`;
+  private registroURL = `${environment.apiUrl}/usuarios/registro/`;
+  private refreshURL = `${environment.apiUrl}/usuarios/token/refresh/`;
 
   constructor(private http: HttpClient, private router: Router) { }
 

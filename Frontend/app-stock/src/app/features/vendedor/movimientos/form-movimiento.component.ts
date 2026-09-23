@@ -12,6 +12,7 @@ import { MovimientoService } from '../../../core/services/movimiento.service';
 import { ProductoService } from '../../../core/services/producto.service';
 import { StockSucursalService } from '../../../core/services/stock-sucursal.service';
 import { ProveedorService } from '../../../core/services/proveedor.service';
+import { SucursalService } from '../../../core/services/sucursal.service';
 import { UserAuthService } from '../../../core/services/user-auth.service';
 import { Producto } from '../../../core/models/producto.model';
 import { StockSucursal } from '../../../core/models/stock-sucursal.model';
@@ -28,7 +29,8 @@ export class FormMovimientoComponent implements OnInit {
   formulario: FormGroup;
   todosLosProductos: Producto[] = [];
   todoElStock: StockSucursal[] = [];
-  sucursales: { id: number; nombre: string }[] = [];
+  sucursales: { id: number; nombre: string; es_central?: boolean }[] = [];
+  sucursalesOrigen: { id: number; nombre: string; es_central?: boolean }[] = [];
   sucursalesDestino: { id: number; nombre: string }[] = [];
   todosLosProveedores: Proveedor[] = [];
   proveedoresFiltrados: Proveedor[] = [];
@@ -47,6 +49,7 @@ export class FormMovimientoComponent implements OnInit {
     private productoService: ProductoService,
     private stockService: StockSucursalService,
     private proveedorService: ProveedorService,
+    private sucursalService: SucursalService,
     private userAuthService: UserAuthService,
     private router: Router
   ) {
@@ -69,15 +72,21 @@ export class FormMovimientoComponent implements OnInit {
       error: () => (this.errorMsg = 'No se pudieron cargar los productos.'),
     });
 
+    this.sucursalService.getAll().subscribe({
+      next: (data) => {
+        this.sucursales = data.map((s) => ({
+          id: s.id_suc,
+          nombre: s.nombre,
+          es_central: s.es_central,
+        }));
+        this.actualizarSucursalesOrigenPorTipo(this.formulario.get('tipo')?.value);
+      },
+      error: () => (this.errorMsg = 'No se pudieron cargar las sucursales.'),
+    });
+
     this.stockService.getAll().subscribe({
       next: (data) => {
         this.todoElStock = data;
-        const mapa = new Map<number, string>();
-        data.forEach((s) => mapa.set(s.id_suc, s.nombre_sucursal ?? ''));
-        this.sucursales = Array.from(mapa.entries()).map(([id, nombre]) => ({
-          id,
-          nombre,
-        }));
       },
       error: () => (this.errorMsg = 'No se pudo cargar el stock.'),
     });
@@ -127,6 +136,20 @@ export class FormMovimientoComponent implements OnInit {
     if (tipo !== 'Entrada') {
       this.formulario.get('id_prov')?.reset('');
     }
+
+    this.actualizarSucursalesOrigenPorTipo(tipo);
+  }
+
+  private actualizarSucursalesOrigenPorTipo(tipo: string): void {
+    if (tipo === 'Entrada') {
+      this.sucursalesOrigen = this.sucursales.filter((s) => s.es_central);
+      const central = this.sucursalesOrigen[0];
+      if (central && this.formulario.get('id_suc')?.value !== central.id) {
+        this.formulario.get('id_suc')?.setValue(central.id);
+      }
+    } else {
+      this.sucursalesOrigen = [...this.sucursales];
+    }
   }
 
   private actualizarSucursalesDestino(idOrigen: any): void {
@@ -151,13 +174,20 @@ export class FormMovimientoComponent implements OnInit {
       // En una entrada se puede ingresar cualquier producto del catálogo
       this.productosFiltrados = [...this.todosLosProductos];
     } else {
-      // Para Salida o Traslado, filtramos los que tengan registro de stock
+      // Para Salida o Traslado, filtramos los que tengan existencias mayores a 0
       const idsProductos = this.todoElStock
-        .filter((s) => s.id_suc == idSucursal)
+        .filter((s) => s.id_suc == idSucursal && Number(s.cantidad_stock) > 0)
         .map((s) => s.id_art);
       this.productosFiltrados = this.todosLosProductos.filter(
         (p) => p.id_art !== undefined && idsProductos.includes(p.id_art)
       );
+    }
+
+    // Si el producto seleccionado previamente ya no está disponible, resetearlo
+    const idArtActual = this.formulario.get('id_art')?.value;
+    if (idArtActual && !this.productosFiltrados.some((p) => p.id_art == idArtActual)) {
+      this.formulario.get('id_art')?.reset('');
+      this.stockDisponible = null;
     }
   }
 

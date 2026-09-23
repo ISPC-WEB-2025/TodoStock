@@ -28,10 +28,73 @@ class StockConsolidadoAPITests(TestCase):
 
     def setUp(self):
         self.client = APIClient()
-        self.prod_perfil = Producto.objects.get(codigo="ALU-45")
-        self.prod_motor = Producto.objects.get(codigo="MOT-50")
-        self.suc_fabrica = Sucursal.objects.get(nombre="Fábrica Principal")
-        self.suc_deposito = Sucursal.objects.get(nombre="Depósito Zona Sur")
+        from usuarios.models import Usuario
+        from .models import Categoria
+        self.user, _ = Usuario.objects.get_or_create(
+            email="admin_stock@ejemplo.com",
+            defaults={
+                "nombre": "Admin Stock",
+                "dni": 12345674,
+                "fecha_nacimiento": "1990-01-01",
+                "is_staff": True,
+                "is_superuser": True,
+            },
+        )
+        self.client.force_authenticate(user=self.user)
+
+        self.cat_alum, _ = Categoria.objects.get_or_create(nombre="Perfiles de aluminio")
+        self.cat_motores, _ = Categoria.objects.get_or_create(nombre="Motores")
+
+        self.prod_perfil, _ = Producto.objects.get_or_create(
+            codigo="ALU-45",
+            defaults={
+                "nombre": "Perfil de aluminio 45mm",
+                "precio_venta": 12500.00,
+                "id_cat": self.cat_alum,
+                "stock_min_global": 50,
+            },
+        )
+        self.prod_motor, _ = Producto.objects.get_or_create(
+            codigo="MOT-50",
+            defaults={
+                "nombre": "Motor Tubular 50Nm",
+                "precio_venta": 85000.00,
+                "id_cat": self.cat_motores,
+                "stock_min_global": 5,
+            },
+        )
+        self.suc_fabrica, _ = Sucursal.objects.get_or_create(
+            nombre="Fábrica Principal",
+            defaults={"direccion": "Calle Industrial 100"},
+        )
+        self.suc_deposito, _ = Sucursal.objects.get_or_create(
+            nombre="Depósito Zona Sur",
+            defaults={"direccion": "Av. Sabattini 3200"},
+        )
+
+        st1, _ = StockSucursal.objects.get_or_create(
+            id_art=self.prod_perfil,
+            id_suc=self.suc_fabrica,
+            defaults={"cantidad_stock": 100, "stock_min": 50},
+        )
+        st1.cantidad_stock = 100
+        st1.save()
+
+        st2, _ = StockSucursal.objects.get_or_create(
+            id_art=self.prod_perfil,
+            id_suc=self.suc_deposito,
+            defaults={"cantidad_stock": 50, "stock_min": 20},
+        )
+        st2.cantidad_stock = 50
+        st2.save()
+
+        st3, _ = StockSucursal.objects.get_or_create(
+            id_art=self.prod_motor,
+            id_suc=self.suc_fabrica,
+            defaults={"cantidad_stock": 20, "stock_min": 5},
+        )
+        st3.cantidad_stock = 20
+        st3.save()
 
     def test_stock_total_consolidado_en_producto(self):
         """Verifica que /api/inventario/productos/{id}/ retorne el stock_total sumado en la red."""

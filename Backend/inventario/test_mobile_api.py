@@ -34,9 +34,44 @@ class MobileAPIReadinessTests(TestCase):
 
     def setUp(self):
         self.client = APIClient()
-        self.prod_perfil = Producto.objects.get(codigo="ALU-45")
-        self.prod_motor = Producto.objects.get(codigo="MOT-50")
-        self.suc_fabrica = Sucursal.objects.get(nombre="Fábrica Principal")
+        from .models import Categoria
+        self.user, _ = Usuario.objects.get_or_create(
+            email="admin_mobile@ejemplo.com",
+            defaults={
+                "nombre": "Admin Mobile",
+                "dni": 12345675,
+                "fecha_nacimiento": "1990-01-01",
+                "is_staff": True,
+                "is_superuser": True,
+            },
+        )
+        self.client.force_authenticate(user=self.user)
+
+        self.cat_alum, _ = Categoria.objects.get_or_create(nombre="Perfiles de aluminio")
+        self.cat_motores, _ = Categoria.objects.get_or_create(nombre="Motores")
+
+        self.prod_perfil, _ = Producto.objects.get_or_create(
+            codigo="ALU-45",
+            defaults={
+                "nombre": "Perfil de aluminio 45mm",
+                "precio_venta": 12500.00,
+                "id_cat": self.cat_alum,
+                "stock_min_global": 50,
+            },
+        )
+        self.prod_motor, _ = Producto.objects.get_or_create(
+            codigo="MOT-50",
+            defaults={
+                "nombre": "Motor Tubular 50Nm",
+                "precio_venta": 85000.00,
+                "id_cat": self.cat_motores,
+                "stock_min_global": 5,
+            },
+        )
+        self.suc_fabrica, _ = Sucursal.objects.get_or_create(
+            nombre="Fábrica Principal",
+            defaults={"direccion": "Calle Industrial 100"},
+        )
 
     def test_busqueda_exacta_codigo_para_escaner(self):
         """Verifica que ?codigo= retorne exclusivamente el producto escaneado."""
@@ -62,12 +97,14 @@ class MobileAPIReadinessTests(TestCase):
 
     def test_filtro_movimientos_por_sucursal_y_tipo(self):
         """Verifica que /api/inventario/movimientos/ permita filtrar por tipo y sucursal."""
+        from django.utils import timezone
         # Registrar un movimiento de salida
         mov = Movimiento.objects.create(
             tipo="Salida",
             cantidad=2,
             id_art=self.prod_perfil,
             id_suc=self.suc_fabrica,
+            fecha_hora=timezone.now(),
             motivo="Venta Mostrador App Móvil",
         )
 

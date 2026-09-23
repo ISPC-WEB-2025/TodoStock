@@ -3,6 +3,8 @@
 # Configuración general
 SECRET_KEY=tu_clave_secreta
 DEBUG=True
+# Hosts permitidos (separados por coma). En desarrollo se puede omitir o usar '*'
+ALLOWED_HOSTS="localhost, 127.0.0.1, todostock.alwaysdata.net"
 
 # Base de datos
 DB_NAME="tu_nombre_de_base_de_datos"
@@ -10,3 +12,8 @@ DB_USER="tu_usuario"
 DB_PASSWORD="tu_contraseña"
 DB_HOST="localhost"
 DB_PORT=3306
+
+# Superadministrador inicial (opcional en desarrollo, recomendado en producción)
+# Si DEBUG=False y no se define ADMIN_PASSWORD, se autogenerará una contraseña segura de alta entropía.
+ADMIN_EMAIL="admin@codelab.com"
+ADMIN_PASSWORD="tu_contraseña_segura"

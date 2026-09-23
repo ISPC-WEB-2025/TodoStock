@@ -2,10 +2,11 @@ import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { StockSucursal } from '../models/stock-sucursal.model';
+import { environment } from '../../../environments/environment';
 
 @Injectable({ providedIn: 'root' })
 export class StockSucursalService {
-  private apiUrl = 'http://localhost:8000/api/inventario/stock/';
+  private apiUrl = `${environment.apiUrl}/inventario/stock/`;
 
   constructor(private http: HttpClient) { }
 

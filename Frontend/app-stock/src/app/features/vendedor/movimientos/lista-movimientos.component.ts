@@ -1,12 +1,12 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
-
-import { MovimientoService } from '../../../core/services/movimiento.service';
-import { Movimiento } from '../../../core/models/movimiento.model';
-import { StockSucursalService } from '../../../core/services/stock-sucursal.service';
-import { StockSucursal } from '../../../core/models/stock-sucursal.model';
 import { FormsModule } from '@angular/forms';
+
+import { MovimientoService, MovimientoFiltros } from '../../../core/services/movimiento.service';
+import { Movimiento } from '../../../core/models/movimiento.model';
+import { SucursalService } from '../../../core/services/sucursal.service';
+import { Sucursal } from '../../../core/models/sucursal.model';
 
 @Component({
   selector: 'app-lista-movimientos',
@@ -19,24 +19,30 @@ export class ListaMovimientosComponent implements OnInit {
   movimientos: Movimiento[] = [];
   cargando = true;
   error = '';
-  sucursales: { id: number, nombre: string }[] = [];
+  sucursales: Sucursal[] = [];
   sucursalSeleccionada: number | null = null;
-  stockTotal: StockSucursal[] = [];
-  // Para el filtro de sucursales
-  get movimientosFiltrados() {
-    if (!this.sucursalSeleccionada) return this.movimientos;
-    return this.movimientos.filter(m => m.id_suc === this.sucursalSeleccionada);
-  }
 
   constructor(
     private movimientoService: MovimientoService,
-    private router: Router,
-    private stockService: StockSucursalService
-
+    private sucursalService: SucursalService,
+    private router: Router
   ) { }
 
   ngOnInit(): void {
-    this.movimientoService.getAll().subscribe({
+    this.cargarMovimientos();
+    this.cargarSucursales();
+  }
+
+  cargarMovimientos(): void {
+    this.cargando = true;
+    this.error = '';
+
+    const filtros: MovimientoFiltros = {};
+    if (this.sucursalSeleccionada !== null && this.sucursalSeleccionada !== undefined) {
+      filtros.id_suc = this.sucursalSeleccionada;
+    }
+
+    this.movimientoService.getAll(filtros).subscribe({
       next: (data) => {
         this.movimientos = data;
         this.cargando = false;
@@ -46,15 +52,21 @@ export class ListaMovimientosComponent implements OnInit {
         this.cargando = false;
       },
     });
+  }
 
-    // Cargar sucursales para el filtro
-    this.stockService.getAll().subscribe(data => {
-      this.stockTotal = data;
-      const mapa = new Map<number, string>();
-      data.forEach(s => mapa.set(s.id_suc, s.nombre_sucursal!));
-      this.sucursales = Array.from(mapa.entries()).map(([id, nombre]) => ({ id, nombre }));
+  cargarSucursales(): void {
+    this.sucursalService.getAll().subscribe({
+      next: (data) => {
+        this.sucursales = data;
+      },
+      error: () => {
+        console.error('Error al cargar la lista de sucursales para el filtro.');
+      },
     });
+  }
 
+  onCambioSucursal(): void {
+    this.cargarMovimientos();
   }
 
   irNuevoMovimiento(): void {
@@ -65,11 +77,19 @@ export class ListaMovimientosComponent implements OnInit {
     }
   }
 
-  // Método para obtener el stock de un producto en la sucursal seleccionada
-  getStock(id_art: number, id_suc: number): number | null {
-    const registro = this.stockTotal.find(
-      s => s.id_art === id_art && s.id_suc === id_suc
+  esTrasladoIngreso(mov: Movimiento): boolean {
+    return (
+      mov.tipo === 'Traslado' &&
+      !!mov.motivo &&
+      (mov.motivo.startsWith('Recepción') || mov.motivo.includes('desde'))
     );
-    return registro ? registro.cantidad_stock : null;
+  }
+
+  esTrasladoEgreso(mov: Movimiento): boolean {
+    return (
+      mov.tipo === 'Traslado' &&
+      !!mov.motivo &&
+      (mov.motivo.startsWith('Traslado hacia') || mov.motivo.includes('hacia'))
+    );
   }
 }

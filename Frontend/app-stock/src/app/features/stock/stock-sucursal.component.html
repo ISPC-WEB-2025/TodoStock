@@ -49,9 +49,9 @@
       <div class="card border-0 shadow-sm metric-card p-3 bg-white h-100">
         <div class="d-flex justify-content-between align-items-center">
           <div>
-            <small class="text-muted fw-semibold d-block">Existencias en Red</small>
-            <strong class="fs-4 text-primary">{{ totalUnidades }}</strong>
-            <small class="text-muted d-block" style="font-size: 0.75rem;">Unidades físicas</small>
+            <small class="text-muted fw-semibold d-block">Sedes Activas</small>
+            <strong class="fs-4 text-primary">{{ totalSedes }}</strong>
+            <small class="text-muted d-block" style="font-size: 0.75rem;">Sedes operativas</small>
           </div>
           <div class="metric-icon bg-info-subtle text-info rounded-3 p-2">
             🏢
@@ -313,7 +313,13 @@
                             <tr class="border-bottom">
                               <!-- Sede -->
                               <td class="ps-3 fw-semibold text-dark">
-                                🏢 {{ sede.nombre_sucursal || 'Sede #' + sede.id_suc }}
+                                <span>{{ esSedeCentral(sede.id_suc) ? '🏭' : '🏢' }}</span>
+                                <span class="ms-1">{{ sede.nombre_sucursal || 'Sede #' + sede.id_suc }}</span>
+                                @if (esSedeCentral(sede.id_suc)) {
+                                  <span class="badge bg-primary-subtle text-primary border border-primary-subtle ms-2" style="font-size: 0.7rem;">
+                                    Casa Central
+                                  </span>
+                                }
                               </td>
 
                               <!-- Stock Físico -->

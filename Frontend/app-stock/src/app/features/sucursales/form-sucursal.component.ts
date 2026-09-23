@@ -44,6 +44,7 @@ export class FormSucursalComponent implements OnInit {
     this.sucursalForm = this.fb.group({
       nombre: ['', [Validators.required, Validators.maxLength(100)]],
       direccion: ['', [Validators.required, Validators.maxLength(300)]],
+      es_central: [false],
     });
   }
 
@@ -63,6 +64,7 @@ export class FormSucursalComponent implements OnInit {
         this.sucursalForm.patchValue({
           nombre: sucursal.nombre,
           direccion: sucursal.direccion,
+          es_central: sucursal.es_central ?? false,
         });
         this.cargando = false;
       },

@@ -193,8 +193,8 @@ export class StockSucursalComponent implements OnInit {
     return this.productosConsolidados.length;
   }
 
-  get totalUnidades(): number {
-    return this.productosConsolidados.reduce((acc, p) => acc + p.stock_total, 0);
+  get totalSedes(): number {
+    return this.sucursales.length;
   }
 
   get articulosOptimos(): number {
@@ -228,6 +228,10 @@ export class StockSucursalComponent implements OnInit {
 
   colapsarTodos(): void {
     this.productosExpandidos.clear();
+  }
+
+  esSedeCentral(idSuc: number): boolean {
+    return !!this.sucursales.find((s) => s.id_suc === idSuc)?.es_central;
   }
 
   // Modal Rápido de Umbral In-situ

@@ -37,6 +37,18 @@ class CategoriaTests(TestCase):
 
     def setUp(self):
         self.client = APIClient()
+        from usuarios.models import Usuario
+        self.user, _ = Usuario.objects.get_or_create(
+            email="admin_cat@ejemplo.com",
+            defaults={
+                "nombre": "Admin Cat",
+                "dni": 12345671,
+                "fecha_nacimiento": "1990-01-01",
+                "is_staff": True,
+                "is_superuser": True,
+            },
+        )
+        self.client.force_authenticate(user=self.user)
         self.cat_herramientas = Categoria.objects.create(nombre="Herramientas")
         self.cat_iluminacion = Categoria.objects.create(nombre="Iluminación")
 

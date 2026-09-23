@@ -40,18 +40,23 @@
           }
         </div>
 
-        <!-- Sucursal Origen -->
+        <!-- Sucursal Origen / Receptora -->
         <div class="row mb-3">
           <div class="col-12" [class.col-md-6]="formulario.get('tipo')?.value === 'Traslado'">
             <label class="form-label fw-bold">
-              {{ formulario.get('tipo')?.value === 'Traslado' ? 'Sucursal Origen *' : 'Sucursal *' }}
+              {{ formulario.get('tipo')?.value === 'Traslado' ? 'Sucursal Origen *' : (formulario.get('tipo')?.value === 'Entrada' ? 'Sucursal Receptora (Casa Central) *' : 'Sucursal *') }}
             </label>
             <select class="form-select" formControlName="id_suc" [class.is-invalid]="formulario.get('id_suc')?.invalid && formulario.get('id_suc')?.touched">
               <option value="">-- Seleccioná una sucursal --</option>
-              @for (s of sucursales; track s.id) {
-              <option [value]="s.id">{{ s.nombre }}</option>
+              @for (s of sucursalesOrigen; track s.id) {
+              <option [value]="s.id">{{ s.nombre }}{{ s.es_central ? ' 🏭 (Casa Central)' : '' }}</option>
               }
             </select>
+            @if (formulario.get('tipo')?.value === 'Entrada') {
+            <div class="form-text text-muted small mt-1">
+              🏢 Las compras a proveedores ingresan a la Casa Central para su posterior distribución.
+            </div>
+            }
             @if (formulario.get('id_suc')?.invalid && formulario.get('id_suc')?.touched) {
             <div class="invalid-feedback">La sucursal es obligatoria.</div>
             }
@@ -84,12 +89,17 @@
             [attr.disabled]="!formulario.get('id_suc')?.value ? true : null"
           >
             <option value="">
-              {{ formulario.get('id_suc')?.value ? '-- Seleccioná un producto --' : '-- Primero seleccioná una sucursal --' }}
+              {{ formulario.get('id_suc')?.value ? (productosFiltrados.length === 0 && formulario.get('tipo')?.value !== 'Entrada' ? '-- Sin productos con existencias en esta sede --' : '-- Seleccioná un producto --') : '-- Primero seleccioná una sucursal --' }}
             </option>
             @for (p of productosFiltrados; track p.id_art) {
             <option [value]="p.id_art">{{ p.nombre }} (Código: {{ p.codigo }})</option>
             }
           </select>
+          @if (formulario.get('id_suc')?.value && productosFiltrados.length === 0 && formulario.get('tipo')?.value !== 'Entrada') {
+          <div class="form-text text-warning mt-1">
+            ⚠️ Esta sucursal no posee productos con existencias disponibles para {{ formulario.get('tipo')?.value === 'Traslado' ? 'trasladar' : 'dar salida' }}.
+          </div>
+          }
           @if (formulario.get('id_art')?.invalid && formulario.get('id_art')?.touched) {
           <div class="invalid-feedback">El producto es obligatorio.</div>
           }

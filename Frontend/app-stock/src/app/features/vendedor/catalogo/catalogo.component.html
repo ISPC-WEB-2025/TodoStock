@@ -43,6 +43,13 @@
         </td>
         }
       </tr>
+      } @empty {
+      <tr>
+        <td [attr.colspan]="sucursalSeleccionada ? 6 : 5" class="text-center text-muted py-4">
+          {{ sucursalSeleccionada ? 'No hay productos con existencias disponibles en esta sucursal.' : 'No hay productos registrados en el catálogo.' }}
+        </td>
+      </tr>
       }
+    </tbody>
   </table>
 </div>

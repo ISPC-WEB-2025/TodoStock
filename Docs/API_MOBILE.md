@@ -8,11 +8,12 @@ Documentación técnica y catálogo de endpoints preparados para el consumo desd
 
 | Entorno / Dispositivo | URL Base | Observaciones |
 | :--- | :--- | :--- |
-| **Emulador Android Oficial** | `http://10.0.2.2:8000/` | `10.0.2.2` apunta al `localhost` del host de desarrollo. |
-| **Simulador iOS** | `http://127.0.0.1:8000/` | Accede de forma directa al puerto local. |
-| **Dispositivo Físico (Wi-Fi)** | `http://<IP_LOCAL_PC>:8000/` | Ej. `http://192.168.1.50:8000/` (misma red Wi-Fi). |
+| **Producción Remoto (Nube)** | `https://<tu_usuario>.alwaysdata.net/` | Conexión segura HTTPS pública desde datos móviles o cualquier red exterior. |
+| **Emulador Android Oficial** | `http://10.0.2.2:8000/` | `10.0.2.2` apunta al `localhost` del host de desarrollo local. |
+| **Simulador iOS** | `http://127.0.0.1:8000/` | Accede de forma directa al puerto local de desarrollo. |
+| **Dispositivo Físico (Wi-Fi Local)** | `http://<IP_LOCAL_PC>:8000/` | Ej. `http://192.168.1.50:8000/` (misma red Wi-Fi de desarrollo). |
 
-> **Nota**: El backend cuenta con `ALLOWED_HOSTS = ["*"]` y `CORS_ALLOW_ALL_ORIGINS = True` para admitir conexiones móviles sin bloqueos de red.
+> **Nota de Despliegue**: Para la puesta en marcha de la API en la nube con base de datos MySQL, consultar la [Guía de Despliegue en Alwaysdata](DEPLOY_ALWAYSDATA.md). El backend cuenta con `ALLOWED_HOSTS` configurable y `CORS_ALLOW_ALL_ORIGINS = True` para admitir conexiones desde aplicaciones móviles sin bloqueos de red.
 
 ---
 

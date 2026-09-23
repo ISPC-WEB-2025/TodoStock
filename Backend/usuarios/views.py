@@ -35,6 +35,8 @@ class EsAdminParaModificar(BasePermission):
 
 
 class LoginUsuarioView(APIView):
+    permission_classes = [AllowAny]
+
     def post(
         self, request
     ):  # define vista, solo recibe post, no get (ej barra de naveg) / request contiene lo que envía Angular
