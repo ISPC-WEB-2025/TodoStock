@@ -92,6 +92,15 @@ class SucursalViewSet(viewsets.ModelViewSet):
     def destroy(self, request, *args, **kwargs):
         sucursal = self.get_object()
 
+        # Validar si es la Casa Central activa del sistema
+        if sucursal.es_central:
+            return Response(
+                {
+                    "error": f"No se puede eliminar la sucursal '{sucursal.nombre}' porque está designada como Casa Central del sistema. Para darla de baja, primero debe designar otra sucursal como Central."
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         # Validar si tiene stock físico activo mayor a 0
         tiene_stock_activo = StockSucursal.objects.filter(
             id_suc=sucursal, cantidad_stock__gt=0
@@ -215,13 +224,20 @@ class MovimientoViewSet(viewsets.ModelViewSet):
         if request.user and request.user.is_authenticated and not serializer.validated_data.get("id_usuario"):
             serializer.validated_data["id_usuario"] = request.user
 
-        # Validar permisos para Entradas
+        # Validar permisos y sede central para Entradas
         if tipo == "Entrada":
             es_admin = getattr(request.user, "es_admin", False) or getattr(request.user, "is_superuser", False)
             if request.user.is_authenticated and not es_admin:
                 return Response(
                     {"error": "Los vendedores no pueden registrar entradas de stock."},
                     status=status.HTTP_403_FORBIDDEN,
+                )
+            if not getattr(sucursal, "es_central", False):
+                return Response(
+                    {
+                        "error": f"Las compras a proveedores solo pueden recibirse en la Casa Central / Fábrica Principal. La sede '{sucursal.nombre}' es una sucursal secundaria."
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
                 )
 
         # Validaciones para Traslados
@@ -242,7 +258,7 @@ class MovimientoViewSet(viewsets.ModelViewSet):
                 stock_obj, _ = StockSucursal.objects.select_for_update().get_or_create(
                     id_art=producto,
                     id_suc=sucursal,
-                    defaults={"cantidad_stock": 0, "stock_min": producto.stock_min_global},
+                    defaults={"cantidad_stock": 0, "stock_min": 0},
                 )
                 serializer.validated_data["stock_previo"] = stock_obj.cantidad_stock
                 stock_obj.cantidad_stock += cantidad

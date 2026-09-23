@@ -313,7 +313,13 @@
                             <tr class="border-bottom">
                               <!-- Sede -->
                               <td class="ps-3 fw-semibold text-dark">
-                                🏢 {{ sede.nombre_sucursal || 'Sede #' + sede.id_suc }}
+                                <span>{{ esSedeCentral(sede.id_suc) ? '🏭' : '🏢' }}</span>
+                                <span class="ms-1">{{ sede.nombre_sucursal || 'Sede #' + sede.id_suc }}</span>
+                                @if (esSedeCentral(sede.id_suc)) {
+                                  <span class="badge bg-primary-subtle text-primary border border-primary-subtle ms-2" style="font-size: 0.7rem;">
+                                    Casa Central
+                                  </span>
+                                }
                               </td>
 
                               <!-- Stock Físico -->

@@ -85,6 +85,7 @@ class Migration(migrations.Migration):
                 ('id_suc', models.AutoField(primary_key=True, serialize=False)),
                 ('nombre', models.CharField(max_length=100)),
                 ('direccion', models.CharField(max_length=300)),
+                ('es_central', models.BooleanField(default=False)),
             ],
             options={
                 'db_table': 'SUCURSAL',

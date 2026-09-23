@@ -14,10 +14,10 @@ INSERT INTO PROVEEDOR (nombre, cuit, telefono, email, direccion) VALUES
 ('Herrajes & Accesorios Industriales SA', '30-33445566-7', '351-8889900', 'info@herrajesindustriales.com.ar', 'Av. Juan B. Justo 4100'),
 ('Distribuidora Metalúrgica del Norte', '30-55667788-9', '351-2223344', 'pedidos@metalurgicanorte.com', 'Av. La Voz del Interior 6200');
 
-INSERT INTO SUCURSAL (nombre, direccion) VALUES
-('Fábrica Principal',  'Calle Industrial 100'),
-('Depósito Zona Sur',  'Av. Sabattini 3200'),
-('Local Centro',       'Bv. San Juan 450');
+INSERT INTO SUCURSAL (nombre, direccion, es_central) VALUES
+('Fábrica Principal',  'Calle Industrial 100', 1),
+('Depósito Zona Sur',  'Av. Sabattini 3200',   0),
+('Local Centro',       'Bv. San Juan 450',      0);
 
 INSERT INTO PRODUCTO (nombre, descripcion, codigo, precio_venta, id_cat) VALUES
 ('Perfil de aluminio 45mm',      'Perfil para guías de cortinas',          'ALU-45',    12500.00, 1),

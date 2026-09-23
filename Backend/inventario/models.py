@@ -42,13 +42,14 @@ class Sucursal(models.Model):
     id_suc = models.AutoField(primary_key=True)
     nombre = models.CharField(max_length=100)
     direccion = models.CharField(max_length=300)
+    es_central = models.BooleanField(default=False, db_column="es_central")
 
     class Meta:
         managed = False
         db_table = "SUCURSAL"
 
     def __str__(self):
-        return self.nombre
+        return f"{self.nombre}{' (Central)' if self.es_central else ''}"
 
 
 class Proveedor(models.Model):
@@ -151,7 +152,7 @@ def auto_inicializar_stock_producto(sender, instance, created, **kwargs):
             StockSucursal.objects.get_or_create(
                 id_art=instance,
                 id_suc=suc,
-                defaults={"cantidad_stock": 0, "stock_min": instance.stock_min_global},
+                defaults={"cantidad_stock": 0, "stock_min": 0},
             )
 
 
@@ -163,6 +164,6 @@ def auto_inicializar_stock_sucursal(sender, instance, created, **kwargs):
             StockSucursal.objects.get_or_create(
                 id_art=prod,
                 id_suc=instance,
-                defaults={"cantidad_stock": 0, "stock_min": prod.stock_min_global},
+                defaults={"cantidad_stock": 0, "stock_min": 0},
             )
 

@@ -230,6 +230,10 @@ export class StockSucursalComponent implements OnInit {
     this.productosExpandidos.clear();
   }
 
+  esSedeCentral(idSuc: number): boolean {
+    return !!this.sucursales.find((s) => s.id_suc === idSuc)?.es_central;
+  }
+
   // Modal Rápido de Umbral In-situ
   abrirModalUmbral(item: StockSucursal): void {
     this.registroUmbralSeleccionado = item;

@@ -52,8 +52,11 @@ class AuthEnforcementAPITests(TestCase):
         )
         self.sucursal, _ = Sucursal.objects.get_or_create(
             nombre="Sucursal Test",
-            defaults={"direccion": "Calle Test 123"},
+            defaults={"direccion": "Calle Test 123", "es_central": True},
         )
+        if not self.sucursal.es_central:
+            self.sucursal.es_central = True
+            self.sucursal.save()
         self.stock, _ = StockSucursal.objects.get_or_create(
             id_art=self.producto,
             id_suc=self.sucursal,
