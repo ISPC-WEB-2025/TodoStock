@@ -40,18 +40,23 @@
           }
         </div>
 
-        <!-- Sucursal Origen -->
+        <!-- Sucursal Origen / Receptora -->
         <div class="row mb-3">
           <div class="col-12" [class.col-md-6]="formulario.get('tipo')?.value === 'Traslado'">
             <label class="form-label fw-bold">
-              {{ formulario.get('tipo')?.value === 'Traslado' ? 'Sucursal Origen *' : 'Sucursal *' }}
+              {{ formulario.get('tipo')?.value === 'Traslado' ? 'Sucursal Origen *' : (formulario.get('tipo')?.value === 'Entrada' ? 'Sucursal Receptora (Casa Central) *' : 'Sucursal *') }}
             </label>
             <select class="form-select" formControlName="id_suc" [class.is-invalid]="formulario.get('id_suc')?.invalid && formulario.get('id_suc')?.touched">
               <option value="">-- Seleccioná una sucursal --</option>
-              @for (s of sucursales; track s.id) {
-              <option [value]="s.id">{{ s.nombre }}</option>
+              @for (s of sucursalesOrigen; track s.id) {
+              <option [value]="s.id">{{ s.nombre }}{{ s.es_central ? ' 🏭 (Casa Central)' : '' }}</option>
               }
             </select>
+            @if (formulario.get('tipo')?.value === 'Entrada') {
+            <div class="form-text text-muted small mt-1">
+              🏢 Las compras a proveedores ingresan a la Casa Central para su posterior distribución.
+            </div>
+            }
             @if (formulario.get('id_suc')?.invalid && formulario.get('id_suc')?.touched) {
             <div class="invalid-feedback">La sucursal es obligatoria.</div>
             }

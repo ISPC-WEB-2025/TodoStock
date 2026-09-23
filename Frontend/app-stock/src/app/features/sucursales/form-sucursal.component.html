@@ -94,6 +94,25 @@
             }
           </div>
 
+          <!-- Sede Central / Distribuidora -->
+          <div class="mb-4 p-3 bg-light rounded border">
+            <div class="form-check form-switch mb-1">
+              <input
+                class="form-check-input"
+                type="checkbox"
+                role="switch"
+                id="switchEsCentral"
+                formControlName="es_central"
+              />
+              <label class="form-check-label fw-semibold" for="switchEsCentral">
+                🏭 Designar como Casa Central / Sede Distribuidora
+              </label>
+            </div>
+            <small class="text-muted d-block ps-4">
+              La Casa Central es el único nodo habilitado para recibir compras directas a proveedores por remito y abastecer por traslado al resto de las dependencias.
+            </small>
+          </div>
+
           <!-- Botones de Acción -->
           <div class="d-flex justify-content-end gap-2 pt-3 border-top">
             <button type="button" class="btn btn-secondary px-4" (click)="cancelar()">
