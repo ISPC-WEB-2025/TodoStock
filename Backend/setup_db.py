@@ -18,16 +18,23 @@ from django.conf import settings
 from django.db import connection
 
 db = settings.DATABASES["default"]
-conn = MySQLdb.connect(host=db["HOST"], user=db["USER"], passwd=db["PASSWORD"])
-cursor = conn.cursor()
-cursor.execute(
-    f"CREATE DATABASE IF NOT EXISTS {db['NAME']} CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
-)
-conn.commit()
-cursor.close()
-conn.close()
-
-print("✅ Base de datos creada.")
+try:
+    conn = MySQLdb.connect(
+        host=db["HOST"],
+        user=db["USER"],
+        passwd=db["PASSWORD"],
+        port=int(db.get("PORT") or 3306),
+    )
+    cursor = conn.cursor()
+    cursor.execute(
+        f"CREATE DATABASE IF NOT EXISTS {db['NAME']} CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+    )
+    conn.commit()
+    cursor.close()
+    conn.close()
+    print("✅ Base de datos creada o verificada.")
+except Exception as e:
+    print(f"ℹ️ Verificación de CREATE DATABASE omitida ({e}). Se utilizará la base preexistente.")
 
 
 def run_sql(file):
@@ -37,8 +44,13 @@ def run_sql(file):
     with connection.cursor() as cursor:
         for statement in sql.split(";"):
             statement = statement.strip()
-            if statement:
-                cursor.execute(statement)
+            if not statement:
+                continue
+            first_word = statement.split()[0].upper() if statement.split() else ""
+            # Omitir sentencias 'USE ...' y 'CREATE DATABASE ...' para operar siempre sobre la base activa de Django
+            if first_word == "USE" or statement.upper().startswith("CREATE DATABASE"):
+                continue
+            cursor.execute(statement)
     connection.commit()
 
 
