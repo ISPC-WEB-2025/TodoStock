@@ -46,3 +46,4 @@ Los ADRs registran decisiones de arquitectura, no el progreso del backlog:
 | **0005** | [Sucursal Central y Distribución Jerárquica de Stock](./0005-sucursal-central-y-distribucion-jerarquica.md) | `Aceptado` | `feature/sucursal-central-distribucion` |
 | **0006** | [Arquitectura de consumo del Backend por Aplicación Mobile](./0006-arquitectura-consumo-backend-app-mobile.md) | `Aceptado` | `feature/mobile-api-readiness` |
 | **0007** | [Unificación operativa de roles Depósito y Vendedor para Frontend Mobile](./0007-unificacion-roles-deposito-vendedor-en-empleado.md) | `Aceptado` | `feature/adr-mobile-y-unificacion-roles` |
+| **0008** | [Blindaje de jerarquía administrativa, autoservicio de perfil y superusuario](./0008-blindaje-jerarquia-admin-y-autoservicio-perfil.md) | `Aceptado` | `feature/blindaje-jerarquia-admin-perfil` |
