@@ -16,6 +16,8 @@ class UsuarioSerializer(serializers.ModelSerializer):
         queryset=Role.objects.all(),
         source="rol",
         write_only=True,
+        required=False,
+        allow_null=True,
     )
 
     class Meta:
@@ -29,6 +31,8 @@ class UsuarioSerializer(serializers.ModelSerializer):
             "fecha_nacimiento",
             "rol",
             "rol_id",
+            "is_active",
+            "is_superuser",
             "password",
         ]
 
@@ -37,6 +41,7 @@ class UsuarioSerializer(serializers.ModelSerializer):
                 "write_only": True,
                 "required": False,
             },  # Hacemos que el password no sea obligatorio para poder editar usuarios sin cambiar su contraseña
+            "is_superuser": {"read_only": True},  # Solo el ORM puede modificar este campo
         }
 
     def create(self, validated_data):
@@ -62,3 +67,35 @@ class UsuarioSerializer(serializers.ModelSerializer):
             instance.set_password(password)
         instance.save()
         return instance
+
+
+class PerfilUsuarioSerializer(serializers.ModelSerializer):
+    """
+    Serializer restringido para el autoservicio de perfil propio (/api/usuarios/me/).
+    El usuario autenticado puede actualizar sus datos personales pero no puede
+    auto-modificar campos de acceso y seguridad (rol, email, is_active, is_superuser).
+    Implementa la decision del ADR-0008 (autoservicio de perfil).
+    """
+
+    rol = RoleSerializer(read_only=True)
+
+    class Meta:
+        model = Usuario
+        fields = [
+            "id",
+            "email",
+            "nombre",
+            "dni",
+            "fecha_nacimiento",
+            "rol",
+            "is_active",
+            "is_superuser",
+        ]
+        read_only_fields = [
+            "id",
+            "email",        # El email no se cambia por este endpoint
+            "rol",          # Solo un admin puede cambiar el rol
+            "is_active",    # Solo un admin puede activar/desactivar cuentas
+            "is_superuser",
+        ]
+
