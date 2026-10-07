@@ -1,11 +1,16 @@
 import subprocess
 import sys
 import os
+from pathlib import Path
 
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8")
 if hasattr(sys.stderr, "reconfigure"):
     sys.stderr.reconfigure(encoding="utf-8")
+
+BASE_DIR = Path(__file__).resolve().parent
+if str(BASE_DIR) not in sys.path:
+    sys.path.insert(0, str(BASE_DIR))
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings")
 
@@ -33,13 +38,23 @@ try:
     cursor.close()
     conn.close()
     print("✅ Base de datos creada o verificada.")
+except MySQLdb.OperationalError as e:
+    # 2003: Can't connect to MySQL server
+    # 1045: Access denied
+    if e.args[0] in (2003, 1045):
+        print(f"\n❌ ERROR DE CONEXIÓN A MYSQL: {e}")
+        print("   Verificá que el servicio MySQL esté iniciado y que las credenciales")
+        print("   en el archivo Backend/.env (DB_USER, DB_PASSWORD, DB_HOST, DB_PORT) sean correctas.\n")
+        sys.exit(1)
+    print(f"ℹ️ Verificación de CREATE DATABASE omitida ({e}). Se utilizará la base preexistente.")
 except Exception as e:
     print(f"ℹ️ Verificación de CREATE DATABASE omitida ({e}). Se utilizará la base preexistente.")
 
 
 def run_sql(file):
-    print(f"Ejecutando {file}...")
-    with open(file, "r", encoding="utf-8") as f:
+    file_path = (BASE_DIR / file) if not Path(file).is_absolute() else Path(file)
+    print(f"Ejecutando {file_path.name}...")
+    with open(file_path, "r", encoding="utf-8") as f:
         sql = f.read()
     with connection.cursor() as cursor:
         for statement in sql.split(";"):
@@ -57,14 +72,17 @@ def run_sql(file):
 print("1. Ejecutando estructura base...")
 run_sql("scripts/01_estructura.sql")
 
+manage_py = str(BASE_DIR / "manage.py")
+roles_json = str(BASE_DIR / "roles.json")
+
 print("2. Actualizando registros de migraciones...")
-subprocess.run([sys.executable, "manage.py", "makemigrations"], check=True)
+subprocess.run([sys.executable, manage_py, "makemigrations"], check=True, cwd=str(BASE_DIR))
 
 print("2a. Ejecutando migraciones Django...")
-subprocess.run([sys.executable, "manage.py", "migrate"], check=True)
+subprocess.run([sys.executable, manage_py, "migrate"], check=True, cwd=str(BASE_DIR))
 
 print("2b. Cargando roles base desde roles.json...")
-subprocess.run([sys.executable, "manage.py", "loaddata", "roles.json"], check=True)
+subprocess.run([sys.executable, manage_py, "loaddata", roles_json], check=True, cwd=str(BASE_DIR))
 
 print("3. Creando tabla MOVIMIENTO...")
 run_sql("scripts/02_movimiento.sql")
