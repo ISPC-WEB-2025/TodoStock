@@ -111,3 +111,23 @@ class CrearSuperadminSecurityTests(TestCase):
         self.assertEqual(Usuario.objects.filter(email="idempotent@test.com").count(), 1)
         user = Usuario.objects.get(email="idempotent@test.com")
         self.assertTrue(user.check_password("Pass2!"))
+
+    @override_settings(DEBUG=True)
+    def test_crear_superadmin_dni_collision_handled(self):
+        """Si otro usuario ya tiene el DNI 12345678, asigna uno alternativo sin romper la restricción UNIQUE."""
+        # Creamos un usuario previo con el DNI por defecto
+        Usuario.objects.create_user(
+            email="otro_usuario@test.com",
+            nombre="Otro Usuario",
+            dni="12345678",
+            fecha_nacimiento="1992-02-02",
+            password="OtherPassword123!",
+        )
+
+        # crear_superadmin no debe fallar con IntegrityError
+        res = crear_superadmin(email_override="admin_conflict@test.com", password_override="AdminPass123!")
+        self.assertTrue(res["creado"])
+        admin_user = Usuario.objects.get(email="admin_conflict@test.com")
+        self.assertTrue(admin_user.is_superuser)
+        self.assertNotEqual(admin_user.dni, "12345678")
+        self.assertTrue(admin_user.dni.startswith("99"))

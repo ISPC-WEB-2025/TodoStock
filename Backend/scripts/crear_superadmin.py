@@ -95,28 +95,40 @@ def crear_superadmin(
             password = generar_password_seguro(20)
             autogenerada = True
 
-    dni = "12345678"
+    dni_default = "12345678"
     nombre = "Super Admin"
 
-    user, created = Usuario.objects.get_or_create(
-        email=email,
-        defaults={
-            "nombre": nombre,
-            "dni": dni,
-            "fecha_nacimiento": "1990-01-01",
-            "rol": rol_admin,
-            "is_active": True,
-            "is_staff": True,
-            "is_superuser": True,
-        },
-    )
+    user = Usuario.objects.filter(email=email).first()
+    created = False
 
-    user.nombre = nombre
-    user.dni = dni
-    user.rol = rol_admin
-    user.is_active = True
-    user.is_staff = True
-    user.is_superuser = True
+    if user is None:
+        dni = dni_default
+        if Usuario.objects.filter(dni=dni).exists():
+            counter = 1
+            while Usuario.objects.filter(dni=f"99{counter:06d}").exists():
+                counter += 1
+            dni = f"99{counter:06d}"
+
+        user = Usuario.objects.create(
+            email=email,
+            nombre=nombre,
+            dni=dni,
+            fecha_nacimiento="1990-01-01",
+            rol=rol_admin,
+            is_active=True,
+            is_staff=True,
+            is_superuser=True,
+        )
+        created = True
+    else:
+        user.nombre = nombre
+        if user.dni != dni_default and not Usuario.objects.filter(dni=dni_default).exclude(pk=user.pk).exists():
+            user.dni = dni_default
+        user.rol = rol_admin
+        user.is_active = True
+        user.is_staff = True
+        user.is_superuser = True
+
     user.set_password(password)
     user.save()
 

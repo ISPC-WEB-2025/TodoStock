@@ -218,8 +218,18 @@ class ProveedorSerializer(serializers.ModelSerializer):
 
 
 class StockSucursalSerializer(serializers.ModelSerializer):
-    nombre_producto = serializers.CharField(source="id_art.nombre", read_only=True)
-    nombre_sucursal = serializers.CharField(source="id_suc.nombre", read_only=True)
+    nombre_producto  = serializers.CharField(source="id_art.nombre", read_only=True)
+    nombre_sucursal  = serializers.CharField(source="id_suc.nombre", read_only=True)
+    # Campos adicionales para la app mobile (US03 #57):
+    # evitan N peticiones extra al listar el inventario de una sucursal.
+    codigo_producto  = serializers.CharField(
+        source="id_art.codigo", read_only=True,
+        help_text="Código SKU del producto (útil para escaneo de barras en la app mobile).",
+    )
+    precio_venta     = serializers.DecimalField(
+        source="id_art.precio_venta", max_digits=10, decimal_places=2, read_only=True,
+        help_text="Precio de venta vigente del producto.",
+    )
 
     class Meta:
         model = StockSucursal
@@ -231,11 +241,13 @@ class StockSucursalSerializer(serializers.ModelSerializer):
             "id_suc",
             "nombre_producto",
             "nombre_sucursal",
+            "codigo_producto",
+            "precio_venta",
         ]
         extra_kwargs = {
             "cantidad_stock": {"read_only": True},
-            "id_art": {"read_only": True},
-            "id_suc": {"read_only": True},
+            "id_art":         {"read_only": True},
+            "id_suc":         {"read_only": True},
         }
 
 
