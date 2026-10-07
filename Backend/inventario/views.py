@@ -39,6 +39,20 @@ class ProductoViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(id_cat_id=id_cat)
         return queryset
 
+    def destroy(self, request, *args, **kwargs):
+        """
+        Elimina un producto del catálogo.
+        Si tiene stock activo o movimientos históricos asociados (on_delete=PROTECT),
+        retorna 400 con mensaje descriptivo en lugar del 500 por defecto (US09 #63).
+        """
+        try:
+            return super().destroy(request, *args, **kwargs)
+        except models.ProtectedError:
+            return Response(
+                {"error": "No se puede eliminar el producto porque tiene stock o movimientos históricos asociados. Para darlo de baja, editá el producto y marcalo como obsoleto en su descripción."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
     @action(detail=True, methods=["get"], url_path="stock", filter_backends=[])
     def stock(self, request, pk=None):
         producto = self.get_object()
