@@ -79,26 +79,45 @@ class UsuarioSerializer(serializers.ModelSerializer):
         }
 
     def create(self, validated_data):
-        # Extraemos el rol. Al sacar el read_only, ahora sí va a llegar el ID correctamente.
         rol_asignado = validated_data.get("rol", None)
+        # Solo el Super Administrador puede crear usuarios con rol ADMINISTRADOR (ADR-0008)
+        if rol_asignado and rol_asignado.nombre.upper() == "ADMINISTRADOR":
+            request = self.context.get("request")
+            if request and not getattr(request.user, "is_superuser", False):
+                raise serializers.ValidationError(
+                    {"rol_id": "Solo el Super Administrador puede asignar el rol de Administrador."}
+                )
 
-        # Usamos TU manager personalizado para crear el usuario y encriptar la clave
+        password = validated_data.get("password")
+        if password:
+            validar_password_robusta(password)
+
         user = Usuario.objects.create_user(
             email=validated_data["email"],
             nombre=validated_data["nombre"],
             dni=validated_data["dni"],
             fecha_nacimiento=validated_data["fecha_nacimiento"],
-            password=validated_data["password"],
+            password=password,
             rol=rol_asignado,
         )
         return user
 
     def update(self, instance, validated_data):
-        password = validated_data.pop("password", None)
+        # Desacople de contraseñas: se ignora password en update general (ADR-0008).
+        # Toda gestión de credenciales se canaliza por reset-password o me/change-password.
+        validated_data.pop("password", None)
+
+        # Solo el Super Administrador puede asignar o reasignar el rol ADMINISTRADOR
+        nuevo_rol = validated_data.get("rol", None)
+        if nuevo_rol and nuevo_rol.nombre.upper() == "ADMINISTRADOR":
+            request = self.context.get("request")
+            if request and not getattr(request.user, "is_superuser", False):
+                raise serializers.ValidationError(
+                    {"rol_id": "Solo el Super Administrador puede asignar el rol de Administrador."}
+                )
+
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
-        if password:
-            instance.set_password(password)
         instance.save()
         return instance
 

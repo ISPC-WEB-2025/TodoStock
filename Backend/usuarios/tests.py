@@ -198,3 +198,134 @@ class AutoservicioPasswordTests(TestCase):
         )
         self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("error", resp.data)
+
+
+class JerarquiaAdministrativaTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.role_admin = Role.objects.create(nombre="ADMINISTRADOR", descripcion="Admin")
+        self.role_emp = Role.objects.create(nombre="EMPLEADO", descripcion="Empleado")
+
+        self.superadmin = Usuario.objects.create_user(
+            email="superadmin@test.com",
+            nombre="Super Admin",
+            dni="11111111",
+            fecha_nacimiento="1980-01-01",
+            password="SuperPassword1!",
+            rol=self.role_admin,
+            is_staff=True,
+            is_superuser=True,
+        )
+
+        self.admin_regular = Usuario.objects.create_user(
+            email="admin_regular@test.com",
+            nombre="Admin Regular",
+            dni="22222222",
+            fecha_nacimiento="1985-05-05",
+            password="AdminRegular1!",
+            rol=self.role_admin,
+            is_staff=True,
+            is_superuser=False,
+        )
+
+        self.otro_admin = Usuario.objects.create_user(
+            email="otro_admin@test.com",
+            nombre="Otro Admin",
+            dni="33333333",
+            fecha_nacimiento="1988-08-08",
+            password="OtroAdminPass1!",
+            rol=self.role_admin,
+            is_staff=True,
+            is_superuser=False,
+        )
+
+        self.empleado = Usuario.objects.create_user(
+            email="empleado_op@test.com",
+            nombre="Empleado Operativo",
+            dni="44444444",
+            fecha_nacimiento="1995-10-10",
+            password="EmpleadoPass1!",
+            rol=self.role_emp,
+        )
+
+    def auth_as(self, user, raw_password):
+        login_resp = self.client.post(
+            "/api/usuarios/login/",
+            {"email": user.email, "password": raw_password},
+            format="json",
+        )
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {login_resp.data['access']}")
+
+    def test_admin_cannot_edit_other_admin(self):
+        self.auth_as(self.admin_regular, "AdminRegular1!")
+        resp = self.client.patch(
+            f"/api/usuarios/{self.otro_admin.id}/",
+            {"nombre": "Nombre Modificado"},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_admin_cannot_deactivate_other_admin(self):
+        self.auth_as(self.admin_regular, "AdminRegular1!")
+        resp = self.client.delete(f"/api/usuarios/{self.otro_admin.id}/")
+        self.assertEqual(resp.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_admin_cannot_reset_password_of_other_admin(self):
+        self.auth_as(self.admin_regular, "AdminRegular1!")
+        resp = self.client.post(
+            f"/api/usuarios/{self.otro_admin.id}/reset-password/",
+            {"nueva_password": "HackeadaAdmin1!"},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_admin_cannot_assign_admin_role(self):
+        self.auth_as(self.admin_regular, "AdminRegular1!")
+        resp = self.client.patch(
+            f"/api/usuarios/{self.empleado.id}/",
+            {"rol_id": self.role_admin.id},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_nobody_can_deactivate_superuser(self):
+        self.auth_as(self.superadmin, "SuperPassword1!")
+        resp = self.client.delete(f"/api/usuarios/{self.superadmin.id}/")
+        self.assertEqual(resp.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_admin_can_reset_employee_password(self):
+        self.auth_as(self.admin_regular, "AdminRegular1!")
+        resp = self.client.post(
+            f"/api/usuarios/{self.empleado.id}/reset-password/",
+            {"nueva_password": "NuevaClaveEmp1!"},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+
+        # Probar login del empleado con su nueva contraseña
+        self.client.credentials()
+        login_resp = self.client.post(
+            "/api/usuarios/login/",
+            {"email": "empleado_op@test.com", "password": "NuevaClaveEmp1!"},
+            format="json",
+        )
+        self.assertEqual(login_resp.status_code, status.HTTP_200_OK)
+
+    def test_update_ignores_password(self):
+        self.auth_as(self.admin_regular, "AdminRegular1!")
+        resp = self.client.patch(
+            f"/api/usuarios/{self.empleado.id}/",
+            {"password": "IgnoradoPass1!"},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+
+        # Verificar que la clave anterior del empleado sigue intacta
+        self.client.credentials()
+        login_resp = self.client.post(
+            "/api/usuarios/login/",
+            {"email": "empleado_op@test.com", "password": "EmpleadoPass1!"},
+            format="json",
+        )
+        self.assertEqual(login_resp.status_code, status.HTTP_200_OK)
+
