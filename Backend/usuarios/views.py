@@ -1,3 +1,5 @@
+import logging
+
 from rest_framework.views import APIView
 from rest_framework.response import (
     Response,
@@ -14,9 +16,11 @@ from django.contrib.auth import (
 from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated, AllowAny
-from .models import Usuario
-from .serializers import UsuarioSerializer
+from .models import Usuario, Role
+from .serializers import UsuarioSerializer, PerfilUsuarioSerializer, RoleSerializer
 from rest_framework.permissions import BasePermission, SAFE_METHODS
+
+logger = logging.getLogger(__name__)
 
 
 class EsAdminParaModificar(BasePermission):
@@ -40,7 +44,7 @@ class LoginUsuarioView(APIView):
     def post(
         self, request
     ):  # define vista, solo recibe post, no get (ej barra de naveg) / request contiene lo que envía Angular
-        # 1. Capturamos los datos que nos va a mandar Angular
+        # 1. Capturamos los datos que nos va a mandar el cliente
         email = request.data.get("email")
         password = request.data.get(
             "password"
@@ -50,20 +54,28 @@ class LoginUsuarioView(APIView):
         user = authenticate(request, email=email, password=password)
 
         if user is not None:
-            # 3. Generamos el par de tokens JWT (Access + Refresh)
+            # 3. Guardia: si la cuenta existe pero está inactiva (pendiente de aprobación)
+            if not user.is_active:
+                return Response(
+                    {"error": "Cuenta pendiente de aprobación por el administrador."},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+
+            # 4. Generamos el par de tokens JWT (Access + Refresh)
             refresh = RefreshToken.for_user(user)
             access_token = str(refresh.access_token)
             refresh_token = str(refresh)
 
             return Response(
                 {
+                    "id": user.id,              # ID del usuario para la app mobile
                     "nombre": user.nombre,
                     "access": access_token,
                     "refresh": refresh_token,
-                    "token": access_token,  # Retrocompatibilidad
+                    "token": access_token,  # Retrocompatibilidad con el cliente web Angular
                     "email": user.email,
                     "es_admin": user.es_admin,
-                    "es_empleado": user.es_empleado,  # booleanos para control de UI según rol
+                    "es_empleado": user.es_empleado,  # booleanos para control de UI según rol (ADR-0007)
                 },
                 status=status.HTTP_200_OK,
             )
@@ -96,13 +108,15 @@ class RegistroUsuarioView(APIView):
                 {"error": "Este email ya existe."}, status=status.HTTP_400_BAD_REQUEST
             )
 
-        # Crear el usuario
-        usuario = Usuario.objects.create_user(
-            nombre=nombre, email=email, dni=dni, fecha_nacimiento=fdn, password=password
+        # Crear el usuario como inactivo — requiere aprobación del administrador (US07)
+        Usuario.objects.create_user(
+            nombre=nombre, email=email, dni=dni, fecha_nacimiento=fdn,
+            password=password, is_active=False,
         )
 
         return Response(
-            {"mensaje": "Usuario creado exitosamente."}, status=status.HTTP_201_CREATED
+            {"mensaje": "Cuenta creada. Aguardá la aprobación del administrador para poder ingresar."},
+            status=status.HTTP_201_CREATED,
         )
 
 
@@ -123,11 +137,82 @@ class UserViewSet(viewsets.ModelViewSet):
             {"mensaje": "Usuario desactivado correctamente."}, status=status.HTTP_200_OK
         )
 
-    @action(detail=False, methods=["get"], url_path="me", permission_classes=[IsAuthenticated])
+    @action(
+        detail=False,
+        methods=["get", "patch", "delete"],
+        url_path="me",
+        permission_classes=[IsAuthenticated],
+    )
     def me(self, request):
-        """Retorna el perfil completo del usuario autenticado vía JWT/Token."""
-        serializer = self.get_serializer(request.user)
-        data = dict(serializer.data)
-        data["es_admin"] = getattr(request.user, "es_admin", False)
-        data["es_empleado"] = getattr(request.user, "es_empleado", False)
-        return Response(data, status=status.HTTP_200_OK)
+        """
+        GET  — Retorna el perfil completo del usuario autenticado.
+        PATCH — Actualiza datos personales propios (nombre, dni, fecha_nacimiento).
+                Campos sensibles (rol, email, is_active, is_superuser) son ignorados.
+        DELETE — Desactiva la cuenta propia (is_active=False). No borra el registro.
+        Implementa ADR-0008 (autoservicio de perfil).
+        """
+        if request.method == "GET":
+            serializer = self.get_serializer(request.user)
+            data = dict(serializer.data)
+            data["es_admin"] = getattr(request.user, "es_admin", False)
+            data["es_empleado"] = getattr(request.user, "es_empleado", False)
+            return Response(data, status=status.HTTP_200_OK)
+
+        elif request.method == "PATCH":
+            serializer = PerfilUsuarioSerializer(
+                request.user, data=request.data, partial=True
+            )
+            serializer.is_valid(raise_exception=True)
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_200_OK)
+
+        elif request.method == "DELETE":
+            request.user.is_active = False
+            request.user.save()
+            return Response(
+                {"mensaje": "Cuenta desactivada. El administrador puede reactivarla cuando lo solicites."},
+                status=status.HTTP_200_OK,
+            )
+
+
+# --- ROLES (solo lectura — para selectores en la app mobile) ---
+class RoleViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    GET /api/usuarios/roles/ — Lista los roles disponibles del sistema.
+    Usado por la app mobile para poblar selectores de asignación de rol en la
+    gestión de usuarios (US08). Solo lectura; la creación de roles es exclusiva del ORM/admin.
+    """
+    queryset = Role.objects.all()
+    serializer_class = RoleSerializer
+    permission_classes = [IsAuthenticated]
+
+
+# --- CONTACTO Y SOPORTE (US04) ---
+class ContactoSoporteView(APIView):
+    """
+    POST /api/usuarios/contacto/ — Recibe consultas de soporte desde la app mobile.
+    No requiere tabla adicional: la consulta se registra en el log del servidor.
+    No requiere configuracion SMTP; homogeneo con el resto de la API REST (Retrofit en Android).
+    """
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        email = request.data.get("email") or getattr(request.user, "email", "anonimo")
+        asunto = request.data.get("asunto", "").strip()
+        mensaje = request.data.get("mensaje", "").strip()
+
+        if not asunto or not mensaje:
+            return Response(
+                {"error": "Los campos 'asunto' y 'mensaje' son obligatorios."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        logger.info(
+            "[SOPORTE] De: %s | Asunto: %s | Mensaje: %s",
+            email, asunto, mensaje,
+        )
+
+        return Response(
+            {"mensaje": "Consulta recibida. Nos pondremos en contacto a la brevedad."},
+            status=status.HTTP_200_OK,
+        )
