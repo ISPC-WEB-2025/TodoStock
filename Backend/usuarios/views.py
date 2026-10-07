@@ -117,7 +117,7 @@ class UserViewSet(viewsets.ModelViewSet):
     # Sobreescribimos solo destroy para no borrar sino desactivar
     def destroy(self, request, *args, **kwargs):
         usuario = self.get_object()
-        usuario.activo = False
+        usuario.is_active = False
         usuario.save()
         return Response(
             {"mensaje": "Usuario desactivado correctamente."}, status=status.HTTP_200_OK
