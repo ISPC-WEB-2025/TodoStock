@@ -1,5 +1,39 @@
+import re
+import string
 from rest_framework import serializers
 from .models import Role, Usuario
+
+
+def validar_password_robusta(password: str) -> None:
+    """
+    Valida política de contraseñas de la aplicación según lineamientos OWASP:
+    - Mínimo 9 caracteres.
+    - No permite espacios en blanco ni caracteres invisibles.
+    - Debe incluir al menos una letra.
+    - Debe incluir al menos un número.
+    - Debe incluir al menos un carácter especial estándar imprimible (string.punctuation).
+    """
+    if not password or len(password) < 9:
+        raise serializers.ValidationError(
+            "La contraseña debe contener al menos 9 caracteres."
+        )
+    if any(c.isspace() for c in password):
+        raise serializers.ValidationError(
+            "La contraseña no puede contener espacios en blanco ni caracteres invisibles."
+        )
+    if not any(c.isalpha() for c in password):
+        raise serializers.ValidationError(
+            "La contraseña debe contener al menos una letra."
+        )
+    if not any(c.isdigit() for c in password):
+        raise serializers.ValidationError(
+            "La contraseña debe contener al menos un número."
+        )
+    if not any(c in string.punctuation for c in password):
+        raise serializers.ValidationError(
+            "La contraseña debe contener al menos un carácter especial válido (ej. !@#$%^&*)."
+        )
+
 
 
 class RoleSerializer(serializers.ModelSerializer):
@@ -99,3 +133,15 @@ class PerfilUsuarioSerializer(serializers.ModelSerializer):
             "is_superuser",
         ]
 
+
+class CambiarPasswordSerializer(serializers.Serializer):
+    """
+    Serializer para el autoservicio de cambio de contraseña propia (US12 / ADR-0008).
+    Requiere la clave actual y una nueva contraseña que satisfaga la política de seguridad.
+    """
+    password_actual = serializers.CharField(write_only=True, required=True)
+    nueva_password = serializers.CharField(write_only=True, required=True)
+
+    def validate_nueva_password(self, value):
+        validar_password_robusta(value)
+        return value
