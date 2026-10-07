@@ -74,7 +74,7 @@ En la terminal dentro de `~/CodeLab/Backend`:
 En `~/CodeLab/Backend`, copiá la plantilla y editá el archivo:
 
 ```bash
-cp ".env modelo" .env
+cp .env.example .env
 nano .env
 ```
 

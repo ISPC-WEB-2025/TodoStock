@@ -114,25 +114,45 @@ venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-**c.** Crear la base de datos en MySQL:
+**c.** Base de datos en MySQL:
+
+La base de datos del proyecto se llama `todostock`. Si utilizas el script automatizado del paso **f**, este la creará por ti si no existe. Si prefieres crearla manualmente por consola o SQL Workbench:
 
 ```sql
-CREATE DATABASE nombre_db;
+CREATE DATABASE todostock CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 ```
 
-**d.** Crear el archivo de variables de entorno copiando el modelo:
+**d.** Crear el archivo de variables de entorno copiando el ejemplo:
 
 ```bash
-cp .env_modelo .env
+# En Bash / Linux / Mac:
+cp .env.example .env
+
+# En Windows (PowerShell):
+Copy-Item .env.example .env
 ```
 
-**e.** Completar `.env` con tus credenciales de MySQL.
+**e.** Completar o verificar `.env` con tus credenciales de MySQL:
+
+```ini
+# Base de datos MySQL local
+DB_NAME=todostock
+DB_USER=root
+DB_PASSWORD=root   # O tu contraseña de MySQL local
+DB_HOST=localhost
+DB_PORT=3306
+
+# Superadministrador inicial (opcional en desarrollo)
+# Email: admin@codelab.com | Password: AdminPassword123!
+ADMIN_EMAIL=admin@codelab.com
+ADMIN_PASSWORD=AdminPassword123!
+```
 
 **f.** Inicializar la base de datos:
 
 #### Opción A — Script automatizado (recomendado)
 
-Con el entorno virtual activado, desde la carpeta `Backend/`:
+Con el entorno virtual activado, desde la carpeta `Backend/` (o desde la raíz del proyecto):
 
 ```bash
 python setup_db.py
@@ -140,7 +160,7 @@ python setup_db.py
 
 Este script realiza de forma integral:
 
-1. Creación de la base de datos MySQL (si no existe).
+1. Creación de la base de datos MySQL `todostock` (si no existe).
 2. Ejecución de migraciones de Django.
 3. Carga automática de los roles base (`roles.json`: `ADMINISTRADOR`, `VENTAS`, `DEPOSITO`).
 4. Creación de la estructura de tablas y datos de prueba completos de inventario y stock.
