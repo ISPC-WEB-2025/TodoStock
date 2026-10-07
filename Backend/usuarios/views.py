@@ -16,25 +16,61 @@ from django.contrib.auth import (
 from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework import serializers
 from .models import Usuario, Role
-from .serializers import UsuarioSerializer, PerfilUsuarioSerializer, RoleSerializer
+from .serializers import (
+    UsuarioSerializer,
+    PerfilUsuarioSerializer,
+    RoleSerializer,
+    CambiarPasswordSerializer,
+    validar_password_robusta,
+)
 from rest_framework.permissions import BasePermission, SAFE_METHODS
 
 logger = logging.getLogger(__name__)
 
 
 class EsAdminParaModificar(BasePermission):
-    # Permite a cualquier usuario logueado VER (GET),
-    # pero solo a los Administradores CREAR, EDITAR o BORRAR.
+    """
+    Permite a cualquier usuario logueado VER (GET - safe methods).
+    Requiere ser Administrador o Superusuario para CREAR, EDITAR o BORRAR.
+    Aplica jerarquía estricta (ADR-0008):
+    - Únicamente el Super Administrador puede editar, desactivar o resetear a otros Administradores o Superusuarios.
+    - Se prohíbe desactivar al Super Administrador principal.
+    """
+    message = "Acción reservada al Administrador."
 
     def has_permission(self, request, view):
-        # Si la petición es GET (solo lectura - SAFE_METHODS), dejamos pasar
         if request.method in SAFE_METHODS:
-            return request.user and request.user.is_authenticated
+            return bool(request.user and request.user.is_authenticated)
 
-        # Si es POST, PUT o DELETE, verificamos que sea admin usando tu propiedad 'es_admin'
         return bool(
-            request.user and request.user.is_authenticated and request.user.es_admin
+            request.user
+            and request.user.is_authenticated
+            and (getattr(request.user, "es_admin", False) or getattr(request.user, "is_superuser", False))
+        )
+
+    def has_object_permission(self, request, view, obj):
+        if request.method in SAFE_METHODS:
+            return bool(request.user and request.user.is_authenticated)
+
+        # Si el objeto inspeccionado es un Usuario
+        if isinstance(obj, Usuario):
+            # Nadie puede desactivar al superusuario raíz
+            if obj.is_superuser and request.method == "DELETE":
+                self.message = "No se puede desactivar la cuenta del Super Administrador principal."
+                return False
+
+            # Si el target es Administrador o Superusuario, solo el Super Administrador puede operar sobre él
+            target_es_admin = getattr(obj, "es_admin", False) or getattr(obj, "is_superuser", False)
+            if target_es_admin and not getattr(request.user, "is_superuser", False):
+                self.message = "Acción reservada al Super Administrador."
+                return False
+
+        return bool(
+            request.user
+            and request.user.is_authenticated
+            and (getattr(request.user, "es_admin", False) or getattr(request.user, "is_superuser", False))
         )
 
 
@@ -108,6 +144,13 @@ class RegistroUsuarioView(APIView):
                 {"error": "Este email ya existe."}, status=status.HTTP_400_BAD_REQUEST
             )
 
+        # Validar política de contraseña robusta (US07, TK47)
+        try:
+            validar_password_robusta(password)
+        except serializers.ValidationError as e:
+            msg = e.detail[0] if isinstance(e.detail, list) else str(e.detail)
+            return Response({"error": msg}, status=status.HTTP_400_BAD_REQUEST)
+
         # Crear el usuario como inactivo — requiere aprobación del administrador (US07)
         Usuario.objects.create_user(
             nombre=nombre, email=email, dni=dni, fecha_nacimiento=fdn,
@@ -173,6 +216,80 @@ class UserViewSet(viewsets.ModelViewSet):
                 {"mensaje": "Cuenta desactivada. El administrador puede reactivarla cuando lo solicites."},
                 status=status.HTTP_200_OK,
             )
+
+    @action(
+        detail=False,
+        methods=["post"],
+        url_path="me/change-password",
+        permission_classes=[IsAuthenticated],
+    )
+    def change_password(self, request):
+        """
+        POST /api/usuarios/me/change-password/
+        Permite al usuario autenticado cambiar su propia contraseña.
+        Requiere password_actual y nueva_password (mínimo 9 caracteres, letras, números y símbolos).
+        Implementa US12 / ADR-0008.
+        """
+        serializer = CambiarPasswordSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        password_actual = serializer.validated_data["password_actual"]
+        nueva_password = serializer.validated_data["nueva_password"]
+
+        if not request.user.check_password(password_actual):
+            return Response(
+                {"error": "La contraseña actual es incorrecta."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if password_actual == nueva_password:
+            return Response(
+                {"error": "La nueva contraseña no puede ser idéntica a la contraseña actual."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        request.user.set_password(nueva_password)
+        request.user.save()
+
+        return Response(
+            {"mensaje": "Contraseña actualizada exitosamente."},
+            status=status.HTTP_200_OK,
+        )
+
+    @action(
+        detail=True,
+        methods=["post"],
+        url_path="reset-password",
+        permission_classes=[EsAdminParaModificar],
+    )
+    def reset_password(self, request, pk=None):
+        """
+        POST /api/usuarios/<id>/reset-password/
+        Reseteo administrativo de contraseña (ADR-0008 / #US08).
+        Un Administrador estándar solo puede resetear contraseñas de cuentas operativas.
+        El reseteo de cuentas ADMINISTRADOR o Superusuario está reservado al Super Administrador.
+        """
+        usuario = self.get_object()
+        nueva_password = request.data.get("nueva_password") or request.data.get("password")
+        if not nueva_password:
+            return Response(
+                {"error": "El campo 'nueva_password' es obligatorio."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            validar_password_robusta(nueva_password)
+        except serializers.ValidationError as e:
+            msg = e.detail[0] if isinstance(e.detail, list) else str(e.detail)
+            return Response({"error": msg}, status=status.HTTP_400_BAD_REQUEST)
+
+        usuario.set_password(nueva_password)
+        usuario.save()
+
+        return Response(
+            {"mensaje": f"Contraseña del usuario '{usuario.email}' restablecida exitosamente."},
+            status=status.HTTP_200_OK,
+        )
 
 
 # --- ROLES (solo lectura — para selectores en la app mobile) ---

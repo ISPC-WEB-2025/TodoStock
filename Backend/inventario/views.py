@@ -20,11 +20,13 @@ from .serializers import (
     StockSucursalSerializer,
     MovimientoSerializer,
 )
+from usuarios.views import EsAdminParaModificar
 
 
 class ProductoViewSet(viewsets.ModelViewSet):
     queryset = Producto.objects.all()
     serializer_class = ProductoSerializer
+    permission_classes = [EsAdminParaModificar]
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
     search_fields = ["nombre", "codigo"]
     ordering_fields = ["id_art", "nombre", "codigo", "precio_venta", "stock_min_global"]
@@ -66,6 +68,7 @@ class ProductoViewSet(viewsets.ModelViewSet):
 class CategoriaViewSet(viewsets.ModelViewSet):
     queryset = Categoria.objects.all()
     serializer_class = CategoriaSerializer
+    permission_classes = [EsAdminParaModificar]
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
     search_fields = ["nombre"]
     ordering_fields = ["id_cat", "nombre"]
@@ -99,6 +102,7 @@ class CategoriaViewSet(viewsets.ModelViewSet):
 class SucursalViewSet(viewsets.ModelViewSet):
     queryset = Sucursal.objects.all()
     serializer_class = SucursalSerializer
+    permission_classes = [EsAdminParaModificar]
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
     search_fields = ["nombre", "direccion"]
     ordering_fields = ["id_suc", "nombre", "direccion"]
@@ -170,6 +174,7 @@ class SucursalViewSet(viewsets.ModelViewSet):
 class ProveedorViewSet(viewsets.ModelViewSet):
     queryset = Proveedor.objects.all()
     serializer_class = ProveedorSerializer
+    permission_classes = [EsAdminParaModificar]
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
     search_fields = ["nombre", "cuit", "email"]
     ordering_fields = ["id_prov", "nombre", "cuit"]
@@ -178,12 +183,14 @@ class ProveedorViewSet(viewsets.ModelViewSet):
 class ProductoProveedorViewSet(viewsets.ModelViewSet):
     queryset = ProductoProveedor.objects.select_related("id_art", "id_prov").all()
     serializer_class = ProductoProveedorSerializer
+    permission_classes = [EsAdminParaModificar]
     filter_backends = [filters.SearchFilter]
     search_fields = ["id_art__nombre", "id_prov__nombre"]
 
 
 class StockSucursalViewSet(viewsets.ModelViewSet):
     serializer_class = StockSucursalSerializer
+    permission_classes = [EsAdminParaModificar]
 
     def get_queryset(self):
         queryset = StockSucursal.objects.select_related("id_art", "id_suc").all()

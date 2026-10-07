@@ -99,6 +99,20 @@ Actualiza los datos personales propios. Campos sensibles (`rol`, `email`, `is_ac
 Desactiva la cuenta propia (`is_active = False`). No borra el registro. El admin puede reactivarla (US11).
 - **Respuesta 200:** `{ "mensaje": "Cuenta desactivada. El administrador puede reactivarla cuando lo solicites." }`
 
+#### `POST /api/usuarios/me/change-password/`
+Permite al usuario autenticado cambiar su propia contraseña (US12 / ADR-0008).
+- **Headers:** `Authorization: Bearer <access_token>`
+- **Body:**
+  ```json
+  {
+    "password_actual": "MiPasswordVieja1!",
+    "nueva_password": "MiPasswordNueva2026!"
+  }
+  ```
+- **Regla de Contraseñas (OWASP / Mobile README):** Mínimo 9 caracteres, incluyendo letras, números y al menos un carácter especial estándar imprimible (`string.punctuation`). No se permiten espacios en blanco.
+- **Respuesta 200:** `{ "mensaje": "Contraseña actualizada exitosamente." }`
+- **Respuesta 400:** Si la clave actual no coincide, si es idéntica a la anterior o si no cumple con la regla de 9 caracteres.
+
 #### `POST /api/usuarios/registro/`
 Registro de usuario nuevo. La cuenta queda inactiva hasta que un admin la apruebe (US07).
 - **Body:** `{ "nombre": "...", "email": "...", "dni": "12345678", "fdn": "1995-03-15", "password": "..." }`
@@ -113,6 +127,11 @@ Envía una consulta de soporte. Se registra en el log del servidor. No requiere 
 
 ### 4.2 Gestión de Usuarios (Admin)
 
+#### Jerarquía y Blindaje Administrativo (ADR-0008):
+- **Super Administrador (`is_superuser=True`):** Puede crear, editar, asignar rol `ADMINISTRADOR`, resetear credenciales y desactivar cualquier cuenta. Su propia cuenta raíz está blindada contra desactivación.
+- **Administrador Estándar (`es_admin=True`):** Solo puede gestionar cuentas operativas (`EMPLEADO` / `VENTAS` / `DEPOSITO`). Si intenta modificar, desactivar o resetear a otro Administrador o al Super Administrador, la API retorna `403 Forbidden` (`{"detail": "Acción reservada al Super Administrador."}`). Tampoco puede promover usuarios a `ADMINISTRADOR`.
+- **Desacople de contraseñas:** El endpoint `PUT/PATCH /api/usuarios/<id>/` ignora el campo `password`. La gestión de contraseñas de terceros se canaliza exclusivamente por `/reset-password/`.
+
 #### `GET /api/usuarios/`
 Lista todos los usuarios. Requiere auth. Solo admins pueden modificar.
 - Cada usuario incluye: `id`, `email`, `nombre`, `dni`, `fecha_nacimiento`, `rol`, `is_active`, `is_superuser`.
@@ -122,6 +141,13 @@ Edita un usuario. Solo admins. Para aprobar una cuenta, enviar `{ "is_active": t
 
 #### `DELETE /api/usuarios/<id>/`
 Baja lógica: `is_active = False`. Solo admins. No borra el registro.
+
+#### `POST /api/usuarios/<id>/reset-password/`
+Reseteo administrativo de contraseñas (US08 / ADR-0008).
+- **Headers:** `Authorization: Bearer <access_token>` (Admin o Superuser)
+- **Body:** `{ "nueva_password": "NuevaPasswordRobusta1!" }`
+- **Respuesta 200:** `{ "mensaje": "Contraseña del usuario '<email>' restablecida exitosamente." }`
+- **Respuesta 403:** Si un admin regular intenta resetear a otro admin o al superuser.
 
 #### `GET /api/usuarios/roles/`
 Lista los roles disponibles para poblar selectores en la app (US08). Solo lectura, requiere auth.

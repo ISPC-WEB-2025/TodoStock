@@ -50,6 +50,20 @@ class MobileAPIReadinessTests(TestCase):
         self.cat_alum, _ = Categoria.objects.get_or_create(nombre="Perfiles de aluminio")
         self.cat_motores, _ = Categoria.objects.get_or_create(nombre="Motores")
 
+        from usuarios.models import Role
+        self.role_emp, _ = Role.objects.get_or_create(nombre="EMPLEADO")
+        self.empleado_user, _ = Usuario.objects.get_or_create(
+            email="empleado_mobile@ejemplo.com",
+            defaults={
+                "nombre": "Empleado Mobile",
+                "dni": 44556677,
+                "fecha_nacimiento": "1994-04-04",
+                "rol": self.role_emp,
+                "is_staff": False,
+                "is_superuser": False,
+            },
+        )
+
         self.prod_perfil, _ = Producto.objects.get_or_create(
             codigo="ALU-45",
             defaults={
@@ -70,7 +84,11 @@ class MobileAPIReadinessTests(TestCase):
         )
         self.suc_fabrica, _ = Sucursal.objects.get_or_create(
             nombre="Fábrica Principal",
-            defaults={"direccion": "Calle Industrial 100"},
+            defaults={"direccion": "Calle Industrial 100", "es_central": True},
+        )
+        self.suc_secundaria, _ = Sucursal.objects.get_or_create(
+            nombre="Sucursal Centro",
+            defaults={"direccion": "Av. Colón 500", "es_central": False},
         )
 
     def test_busqueda_exacta_codigo_para_escaner(self):
@@ -126,3 +144,82 @@ class MobileAPIReadinessTests(TestCase):
             self.assertEqual(response.data["email"], user.email)
             self.assertIn("es_admin", response.data)
             self.assertIn("es_empleado", response.data)
+
+    def test_empleado_cannot_mutate_products(self):
+        """Verifica que un empleado reciba 403 al intentar crear o eliminar productos (US05, US09)."""
+        self.client.force_authenticate(user=self.empleado_user)
+
+        # Intento de creación
+        resp_post = self.client.post(
+            "/api/inventario/productos/",
+            {
+                "codigo": "NO-AUTH-1",
+                "nombre": "Producto No Autorizado",
+                "precio_venta": 500.0,
+                "stock_min_global": 10,
+            },
+            format="json",
+        )
+        self.assertEqual(resp_post.status_code, status.HTTP_403_FORBIDDEN)
+
+        # Intento de eliminación
+        resp_del = self.client.delete(f"/api/inventario/productos/{self.prod_perfil.id_art}/")
+        self.assertEqual(resp_del.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_empleado_can_read_products_and_branch_inventory(self):
+        """Verifica que un empleado pueda listar catálogo y consultar stock por sucursal (US03)."""
+        self.client.force_authenticate(user=self.empleado_user)
+
+        # Listar catálogo
+        resp_list = self.client.get("/api/inventario/productos/")
+        self.assertEqual(resp_list.status_code, status.HTTP_200_OK)
+
+        # Consultar stock por sucursal
+        resp_stock = self.client.get(f"/api/inventario/sucursales/{self.suc_fabrica.id_suc}/inventario/")
+        self.assertEqual(resp_stock.status_code, status.HTTP_200_OK)
+
+    def test_empleado_can_transfer_but_cannot_register_entrada(self):
+        """Verifica que un empleado pueda registrar traslados (US06) pero no compras/entradas."""
+        from .models import StockSucursal
+        # Crear stock previo en origen
+        StockSucursal.objects.update_or_create(
+            id_art=self.prod_perfil,
+            id_suc=self.suc_fabrica,
+            defaults={"cantidad_stock": 20, "stock_min": 5},
+        )
+        StockSucursal.objects.update_or_create(
+            id_art=self.prod_perfil,
+            id_suc=self.suc_secundaria,
+            defaults={"cantidad_stock": 0, "stock_min": 2},
+        )
+
+        self.client.force_authenticate(user=self.empleado_user)
+
+        # Intento de Entrada a compras -> 403 Forbidden
+        resp_entrada = self.client.post(
+            "/api/inventario/movimientos/",
+            {
+                "tipo": "Entrada",
+                "cantidad": 10,
+                "id_art": self.prod_perfil.id_art,
+                "id_suc": self.suc_fabrica.id_suc,
+            },
+            format="json",
+        )
+        self.assertEqual(resp_entrada.status_code, status.HTTP_403_FORBIDDEN)
+
+        # Registro de Traslado -> 201 Created
+        resp_traslado = self.client.post(
+            "/api/inventario/movimientos/",
+            {
+                "tipo": "Traslado",
+                "cantidad": 5,
+                "id_art": self.prod_perfil.id_art,
+                "id_suc": self.suc_fabrica.id_suc,
+                "id_suc_destino": self.suc_secundaria.id_suc,
+                "motivo": "Reabastecimiento sucursal centro",
+            },
+            format="json",
+        )
+        self.assertEqual(resp_traslado.status_code, status.HTTP_201_CREATED)
+
