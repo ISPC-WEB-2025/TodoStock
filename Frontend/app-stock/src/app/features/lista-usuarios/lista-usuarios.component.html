@@ -6,26 +6,35 @@
   </div>
   } @else {
   <div class="d-flex justify-content-between align-items-center mb-4">
-    <h2>Gestión de Usuarios</h2>
+    <div>
+      <h2 class="mb-1">Gestión de Usuarios</h2>
+      <p class="text-muted small mb-0">Control de activación, asignación de roles y jerarquía administrativa.</p>
+    </div>
     <button class="btn btn-success" routerLink="/dashboard/form-usuarios/nuevo">
-      + Agregar usuario
+      <i class="bi bi-plus-lg"></i> + Agregar usuario
     </button>
   </div>
 
   <div class="card shadow-sm usuarios-contenedor">
     <div class="card-body p-0">
-      <div class="p-3 bg-light border-bottom">
-        <p class="contador-us">Total de usuarios: {{ usuarios.length }}</p>
+      <div class="p-3 bg-light border-bottom d-flex justify-content-between align-items-center">
+        <p class="contador-us mb-0">Total de usuarios: <strong>{{ usuarios.length }}</strong></p>
+        @if (esSuperUsuario) {
+        <span class="badge bg-dark border border-warning text-warning px-2 py-1">
+          <i class="bi bi-shield-lock-fill me-1"></i> Sesión: Super Administrador
+        </span>
+        }
       </div>
 
       <div class="table-responsive">
-        <table class="table table-hover">
+        <table class="table table-hover align-middle mb-0">
           <thead class="thead-usuarios">
             <tr>
               <th>ID</th>
               <th>Nombre</th>
               <th>Email</th>
               <th>Rol</th>
+              <th class="text-center">Estado</th>
               <th class="text-center">Acciones</th>
             </tr>
           </thead>
@@ -33,26 +42,88 @@
             @for (usuario of usuarios; track usuario.id) {
             <tr>
               <td>{{ usuario.id }}</td>
-              <td>{{ usuario.nombre }}</td>
+              <td class="fw-semibold">
+                {{ usuario.nombre }}
+                @if (usuario.is_superuser) {
+                <span class="badge bg-dark text-warning ms-1" title="Super Administrador">
+                  <i class="bi bi-shield-fill-check"></i>
+                </span>
+                }
+                @if (esUsuarioActual(usuario)) {
+                <span class="badge bg-secondary ms-1" title="Tu usuario conectado">Tú</span>
+                }
+              </td>
               <td>{{ usuario.email }}</td>
               <td>
-                <span class="badge bg-primary">{{ usuario.rol?.nombre ?? 'Sin rol' }}</span>
+                @if (usuario.is_superuser) {
+                  <span class="badge bg-dark border border-warning text-warning">
+                    <i class="bi bi-shield-lock-fill me-1"></i>Super Admin
+                  </span>
+                } @else if (usuario.rol?.nombre?.toUpperCase() === 'ADMINISTRADOR') {
+                  <span class="badge bg-primary">Administrador</span>
+                } @else if (usuario.rol?.nombre) {
+                  <span class="badge bg-info text-dark">{{ usuario.rol.nombre }}</span>
+                } @else {
+                  <span class="badge bg-secondary">Sin rol asignado</span>
+                }
               </td>
-              <td class="d-flex gap-2 justify-content-center text-center celda-acciones ">
-                <button class="btn btn-sm btn-success" [routerLink]="['/dashboard/form-usuarios/editar', usuario.id]">
-                  <i class="bi bi-pencil"></i> Editar
-                </button>
-                <button class="btn btn-sm btn-danger" data-bs-toggle="modal" data-bs-target="#modalEliminar"
-                  (click)="prepararEliminacion(usuario.id!)">
-                  <i class="bi bi-trash"></i> Eliminar
-                </button>
+              <td class="text-center">
+                @if (usuario.is_active) {
+                  <span class="badge bg-success px-2 py-1">
+                    <i class="bi bi-check-circle-fill me-1"></i>Activo
+                  </span>
+                } @else if (!usuario.rol) {
+                  <span class="badge bg-warning text-dark px-2 py-1" title="Registrado pendiente de aprobación">
+                    <i class="bi bi-clock-history me-1"></i>Pendiente
+                  </span>
+                } @else {
+                  <span class="badge bg-secondary px-2 py-1" title="Cuenta desactivada">
+                    <i class="bi bi-person-x-fill me-1"></i>Desactivado
+                  </span>
+                }
+              </td>
+              <td class="text-center celda-acciones">
+                <div class="d-flex gap-1 justify-content-center">
+                  <!-- Botón Editar -->
+                  <button class="btn btn-sm btn-outline-primary"
+                    [disabled]="!puedeEditar(usuario)"
+                    [title]="esUsuarioActual(usuario) ? 'Editar mi propio perfil' : (obtenerTooltip(usuario) || 'Editar datos del usuario')"
+                    [routerLink]="puedeEditar(usuario) ? ['/dashboard/form-usuarios/editar', usuario.id] : null">
+                    <i class="bi bi-pencil"></i> Editar
+                  </button>
 
+                  <!-- Botón Aprobar / Reactivar (si inactivo) -->
+                  @if (!usuario.is_active) {
+                    <button class="btn btn-sm btn-success"
+                      [disabled]="!puedeOperar(usuario)"
+                      [title]="obtenerTooltip(usuario) || (!usuario.rol ? 'Aprobar cuenta' : 'Reactivar cuenta')"
+                      (click)="aprobarUsuario(usuario)">
+                      <i class="bi bi-check-lg"></i> {{ !usuario.rol ? 'Aprobar' : 'Reactivar' }}
+                    </button>
+                  } @else {
+                    <!-- Botón Desactivar (si activo) -->
+                    <button class="btn btn-sm btn-outline-danger"
+                      [disabled]="!puedeDesactivar(usuario)"
+                      [title]="usuario.is_superuser ? 'No se puede desactivar al Super Administrador principal.' : (obtenerTooltip(usuario) || 'Desactivar cuenta')"
+                      (click)="abrirModalDesactivar(usuario)">
+                      <i class="bi bi-person-slash"></i> Desactivar
+                    </button>
+                  }
+
+                  <!-- Botón Restablecer Contraseña (ADR-0008) -->
+                  <button class="btn btn-sm btn-outline-warning text-dark"
+                    [disabled]="!puedeResetearClave(usuario)"
+                    [title]="esUsuarioActual(usuario) ? 'Para cambiar tu propia clave, utiliza Mi Perfil (requiere clave actual).' : (obtenerTooltip(usuario) || 'Restablecer contraseña administrativamente')"
+                    (click)="abrirModalReset(usuario)">
+                    <i class="bi bi-key-fill"></i> Clave
+                  </button>
+                </div>
               </td>
             </tr>
             } @empty {
             <tr>
               <td colspan="6" class="text-center py-4 text-muted">
-                No hay usuarios registrados en la base de datos.
+                No hay usuarios registrados en el sistema.
               </td>
             </tr>
             }
@@ -62,22 +133,97 @@
     </div>
   </div>
   }
-  <div class="modal fade" id="modalEliminar" tabindex="-1" aria-labelledby="modalEliminarLabel" aria-hidden="true">
+
+  <!-- Modal de Desactivación -->
+  @if (mostrarModalDesactivar && usuarioADesactivar) {
+  <div class="modal-backdrop fade show"></div>
+  <div class="modal fade show d-block" tabindex="-1" role="dialog" aria-labelledby="modalDesactivarLabel" aria-modal="true">
     <div class="modal-dialog modal-dialog-centered">
-      <div class="modal-content">
+      <div class="modal-content shadow">
         <div class="modal-header bg-danger text-white">
-          <h5 class="modal-title" id="modalEliminarLabel">Confirmar Eliminación</h5>
-          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+          <h5 class="modal-title" id="modalDesactivarLabel">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i>Confirmar Desactivación
+          </h5>
+          <button type="button" class="btn-close btn-close-white" aria-label="Cerrar" (click)="cerrarModalDesactivar()" [disabled]="procesandoDesactivar"></button>
         </div>
         <div class="modal-body">
-          ¿Estás seguro de que querés eliminar a este usuario? Esta acción no se puede deshacer.
+          <p class="mb-2">¿Estás seguro de que deseas desactivar la cuenta del usuario?</p>
+          <div class="card bg-light p-3 border-0">
+            <div><strong>Nombre:</strong> {{ usuarioADesactivar.nombre }}</div>
+            <div><strong>Email:</strong> {{ usuarioADesactivar.email }}</div>
+            <div><strong>Rol:</strong> {{ usuarioADesactivar.rol?.nombre ?? 'Sin rol' }}</div>
+          </div>
+          <p class="text-muted small mt-2 mb-0">
+            El usuario no podrá iniciar sesión en la plataforma ni en la app móvil mientras permanezca inactivo. Podrás reactivarlo cuando sea necesario.
+          </p>
         </div>
         <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-          <button type="button" class="btn btn-danger" data-bs-dismiss="modal" (click)="confirmarEliminacion()">Sí,
-            eliminar</button>
+          <button type="button" class="btn btn-secondary" (click)="cerrarModalDesactivar()" [disabled]="procesandoDesactivar">Cancelar</button>
+          <button type="button" class="btn btn-danger" (click)="confirmarDesactivacion()" [disabled]="procesandoDesactivar">
+            @if (procesandoDesactivar) {
+              <span class="spinner-border spinner-border-sm me-1" role="status"></span> Desactivando...
+            } @else {
+              Sí, desactivar cuenta
+            }
+          </button>
         </div>
       </div>
     </div>
   </div>
+  }
+
+  <!-- Modal de Reseteo Administrativo de Contraseña (ADR-0008 / #298) -->
+  @if (mostrarModalReset && usuarioAResetear) {
+  <div class="modal-backdrop fade show"></div>
+  <div class="modal fade show d-block" tabindex="-1" role="dialog" aria-labelledby="modalResetLabel" aria-modal="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content shadow">
+        <div class="modal-header bg-dark text-white">
+          <h5 class="modal-title" id="modalResetLabel">
+            <i class="bi bi-key-fill text-warning me-2"></i>Restablecer Contraseña
+          </h5>
+          <button type="button" class="btn-close btn-close-white" aria-label="Cerrar" (click)="cerrarModalReset()" [disabled]="procesandoReset"></button>
+        </div>
+        <div class="modal-body">
+          <div class="alert alert-info py-2 px-3 small mb-3">
+            Usuario: <strong>{{ usuarioAResetear.nombre }}</strong> ({{ usuarioAResetear.email }})
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-bold">Nueva Contraseña *</label>
+            <div class="input-group">
+              <input [type]="verPassword ? 'text' : 'password'"
+                class="form-control"
+                [(ngModel)]="nuevaPassword"
+                placeholder="Ingresá la nueva clave"
+                [disabled]="procesandoReset">
+              <button class="btn btn-outline-secondary" type="button" (click)="verPassword = !verPassword" title="Alternar visibilidad">
+                <i [class]="verPassword ? 'bi bi-eye-slash' : 'bi bi-eye'"></i>
+              </button>
+            </div>
+            <div class="form-text small text-muted mt-1">
+              Política OWASP: mínimo 9 caracteres, al menos una letra, un número y un símbolo especial (ej. <code>!@#$%^&*</code>), sin espacios.
+            </div>
+          </div>
+
+          @if (errorReset) {
+          <div class="alert alert-danger py-2 px-3 small mb-0">
+            <i class="bi bi-exclamation-circle-fill me-1"></i> {{ errorReset }}
+          </div>
+          }
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" (click)="cerrarModalReset()" [disabled]="procesandoReset">Cancelar</button>
+          <button type="button" class="btn btn-success" (click)="confirmarResetPassword()" [disabled]="procesandoReset || !nuevaPassword">
+            @if (procesandoReset) {
+              <span class="spinner-border spinner-border-sm me-1" role="status"></span> Restableciendo...
+            } @else {
+              <i class="bi bi-check-lg me-1"></i> Confirmar Reseteo
+            }
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+  }
 </div>
