@@ -8,39 +8,32 @@
     </div>
 
     <div class="form-grid-responsive card-body p-4">
+      @if (errorFormulario) {
+      <div class="alert alert-danger py-2 px-3 small mb-3">
+        <i class="bi bi-exclamation-circle-fill me-1"></i> {{ errorFormulario }}
+      </div>
+      }
+
       <form [formGroup]="usuarioForm" (ngSubmit)="guardarUsuario()">
 
-        <div class="row mb-3">
-          <div class="col-md-6">
-            <label class="form-label fw-bold">Nombre *</label>
-            <input type="text" class="form-control" formControlName="nombre"
-              [class.is-invalid]="usuarioForm.get('nombre')?.invalid && usuarioForm.get('nombre')?.touched">
-            @if (usuarioForm.get('nombre')?.invalid && usuarioForm.get('nombre')?.touched) {
-            <div class="invalid-feedback">El nombre es obligatorio.</div>
-            }
-          </div>
-          <div class="col-md-6">
-            <label class="form-label fw-bold">Apellido</label>
-            <input type="text" class="form-control" disabled>
-            <!-- Desactivar este campo, ya que no se lleva control desde el backend
-             --- Asi evitamos que angular tire error en la consola -->
-            <!-- 
-            <input type="text" class="form-control" formControlName="apellido"
-              [class.is-invalid]="usuarioForm.get('apellido')?.invalid && usuarioForm.get('apellido')?.touched">
-              @if (usuarioForm.get('apellido')?.invalid && usuarioForm.get('apellido')?.touched) {
-                <div class="invalid-feedback">El apellido es obligatorio.</div>
-              }
-            -->
-          </div>
+        <!-- Nombre -->
+        <div class="mb-3">
+          <label class="form-label fw-bold">Nombre Completo *</label>
+          <input type="text" class="form-control" formControlName="nombre" placeholder="Nombre y Apellido"
+            [class.is-invalid]="usuarioForm.get('nombre')?.invalid && usuarioForm.get('nombre')?.touched">
+          @if (usuarioForm.get('nombre')?.invalid && usuarioForm.get('nombre')?.touched) {
+          <div class="invalid-feedback">El nombre es obligatorio (mínimo 2 caracteres).</div>
+          }
         </div>
 
+        <!-- DNI y Email -->
         <div class="row mb-3">
           <div class="col-md-6">
             <label class="form-label fw-bold">DNI *</label>
             <input type="text" class="form-control" formControlName="dni" placeholder="Sin puntos ni espacios"
               [class.is-invalid]="usuarioForm.get('dni')?.invalid && usuarioForm.get('dni')?.touched">
             @if (usuarioForm.get('dni')?.invalid && usuarioForm.get('dni')?.touched) {
-            <div class="invalid-feedback">Ingresá un DNI válido (solo números).</div>
+            <div class="invalid-feedback">Ingresá un DNI válido (7 u 8 dígitos numéricos).</div>
             }
           </div>
           <div class="col-md-6">
@@ -52,40 +45,90 @@
             }
           </div>
         </div>
+
+        <!-- Fecha Nacimiento y Contraseña -->
+        @if (!esEdicion) {
         <div class="row mb-3">
           <div class="col-md-6">
             <label class="form-label fw-bold">Fecha de Nacimiento *</label>
             <input type="date" class="form-control" formControlName="fecha_nacimiento"
               [class.is-invalid]="usuarioForm.get('fecha_nacimiento')?.invalid && usuarioForm.get('fecha_nacimiento')?.touched">
+            @if (usuarioForm.get('fecha_nacimiento')?.invalid && usuarioForm.get('fecha_nacimiento')?.touched) {
+            <div class="invalid-feedback">La fecha de nacimiento es obligatoria.</div>
+            }
           </div>
           <div class="col-md-6">
             <label class="form-label fw-bold">Contraseña *</label>
-            <input type="password" class="form-control" formControlName="password"
-              [class.is-invalid]="usuarioForm.get('password')?.invalid && usuarioForm.get('password')?.touched">
+            <div class="input-group">
+              <input [type]="verPassword ? 'text' : 'password'" class="form-control" formControlName="password"
+                placeholder="Contraseña robusta"
+                [class.is-invalid]="usuarioForm.get('password')?.invalid && usuarioForm.get('password')?.touched">
+              <button class="btn btn-outline-secondary" type="button" (click)="verPassword = !verPassword" title="Alternar visibilidad">
+                <i [class]="verPassword ? 'bi bi-eye-slash' : 'bi bi-eye'"></i>
+              </button>
+            </div>
+            @if (usuarioForm.get('password')?.invalid && usuarioForm.get('password')?.touched) {
+            <div class="text-danger small mt-1">
+              Mínimo 9 caracteres, con al menos una letra, un número y un símbolo especial (sin espacios).
+            </div>
+            } @else {
+            <div class="form-text small text-muted">
+              Política OWASP: ≥ 9 caracteres, letra, número y símbolo.
+            </div>
+            }
           </div>
         </div>
+        } @else {
+        <div class="row mb-3">
+          <div class="col-md-12">
+            <label class="form-label fw-bold">Fecha de Nacimiento *</label>
+            <input type="date" class="form-control" formControlName="fecha_nacimiento"
+              [class.is-invalid]="usuarioForm.get('fecha_nacimiento')?.invalid && usuarioForm.get('fecha_nacimiento')?.touched">
+            @if (usuarioForm.get('fecha_nacimiento')?.invalid && usuarioForm.get('fecha_nacimiento')?.touched) {
+            <div class="invalid-feedback">La fecha de nacimiento es obligatoria.</div>
+            }
+          </div>
+          <div class="col-12 mt-2">
+            <div class="alert alert-light border small text-muted mb-0">
+              <i class="bi bi-shield-lock-fill me-1 text-primary"></i>
+              <strong>Gestión de contraseñas:</strong> Por lineamientos de seguridad (ADR-0008), la contraseña no se modifica desde este formulario. Para restablecerla, utilizá el botón <strong>Clave</strong> en la lista de usuarios.
+            </div>
+          </div>
+        </div>
+        }
 
+        <!-- Rol -->
         <div class="mb-4">
           <label class="form-label fw-bold">Rol en el Sistema *</label>
           <select class="form-select" formControlName="rol"
             [class.is-invalid]="usuarioForm.get('rol')?.invalid && usuarioForm.get('rol')?.touched">
             <option value="">-- Seleccioná un rol --</option>
-            <option value="1">Administrador</option>
-            <option value="2">Ventas</option>
-            <option value="3">Depósito</option>
+            @for (rol of roles; track rol.id) {
+            <option [value]="rol.id">{{ rol.nombre }}</option>
+            }
           </select>
           @if (usuarioForm.get('rol')?.invalid && usuarioForm.get('rol')?.touched) {
           <div class="invalid-feedback">Debe asignar un rol al usuario.</div>
+          }
+          @if (!esSuperUsuario) {
+          <div class="form-text small text-muted mt-1">
+            <i class="bi bi-info-circle me-1"></i> La asignación del rol Administrador está reservada al Super Administrador.
+          </div>
           }
         </div>
 
         <hr class="my-4">
 
         <div class="d-grid gap-2 d-md-flex justify-content-md-end">
-          <button type="button" class="btn btn-secondary me-md-2"
-            routerLink="/dashboard/lista-usuarios">Cancelar</button>
-          <button type="submit" class="btn btn-success">
-            <i class="bi bi-save"></i> Guardar Usuario
+          <button type="button" class="btn btn-secondary me-md-2" routerLink="/dashboard/lista-usuarios" [disabled]="cargando">
+            Cancelar
+          </button>
+          <button type="submit" class="btn btn-success" [disabled]="cargando">
+            @if (cargando) {
+              <span class="spinner-border spinner-border-sm me-1" role="status"></span> Guardando...
+            } @else {
+              <i class="bi bi-save me-1"></i> Guardar Usuario
+            }
           </button>
         </div>
 
