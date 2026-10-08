@@ -13,7 +13,21 @@
 
     <main class="form-signin">
       <form [formGroup]="registerForm" (ngSubmit)="onEnviar($event)">
-        @if (registerErrored === true) {
+        @if (registroExitoso) {
+          <div class="alert alert-success py-3 text-center small mb-3">
+            <h5 class="alert-heading fs-6 fw-bold mb-1">¡Registro completado!</h5>
+            <p class="mb-2">{{ mensajeExito }}</p>
+            <a routerLink="/login" class="btn btn-sm btn-outline-success">Ir al inicio de sesión</a>
+          </div>
+        }
+
+        @if (backendError) {
+          <div class="alert alert-danger py-2 text-center small mb-3">
+            {{ backendError }}
+          </div>
+        }
+
+        @if (registerErrored === true && !backendError) {
           <div class="alert alert-danger py-2 text-center small mb-3">
             {{ registroError }}
           </div>
@@ -132,14 +146,13 @@
                   ></i>
                 </button>
               </div>
-              @if (password?.errors && password?.touched && registerErrored) {
+              @if (password?.errors && (password?.touched || registerErrored)) {
                 <div class="text-danger small mt-1">
                   {{
-                    password?.hasError("required") &&
-                    !password?.hasError("minlength")
+                    password?.hasError("required")
                       ? passwordVacio
-                      : password?.hasError("minlength")
-                        ? passwordCorto
+                      : password?.hasError("pattern")
+                        ? passwordInvalidoOwasp
                         : password?.hasError("mismatch")
                           ? passwordNoCoincide
                           : errorDesconocido
@@ -173,18 +186,15 @@
                 </button>
               </div>
               @if (
-                c_password?.errors && c_password?.touched && registerErrored
+                c_password?.errors && (c_password?.touched || registerErrored)
               ) {
                 <div class="text-danger small mt-1">
                   {{
-                    c_password?.hasError("required") &&
-                    !c_password?.hasError("minlength")
+                    c_password?.hasError("required")
                       ? passwordVacio
-                      : c_password?.hasError("minlength")
-                        ? passwordCorto
-                        : c_password?.hasError("mismatch")
-                          ? passwordNoCoincide
-                          : errorDesconocido
+                      : c_password?.hasError("mismatch")
+                        ? passwordNoCoincide
+                        : errorDesconocido
                   }}
                 </div>
               }
