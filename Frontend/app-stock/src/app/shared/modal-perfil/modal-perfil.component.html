@@ -1,0 +1,215 @@
+@if (mostrar) {
+<div class="modal-backdrop fade show"></div>
+<div class="modal fade show d-block" tabindex="-1" role="dialog" aria-labelledby="modalPerfilTitulo" aria-modal="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content shadow-lg border-0">
+      
+      <!-- Header -->
+      <div class="modal-header bg-dark text-white">
+        <h5 class="modal-title" id="modalPerfilTitulo">
+          <i class="bi bi-person-circle me-2 text-primary"></i> Mi Perfil
+        </h5>
+        <button type="button" class="btn-close btn-close-white" aria-label="Cerrar" (click)="cerrarModal()" [disabled]="guardandoPerfil || guardandoPassword || solicitandoBaja"></button>
+      </div>
+
+      <!-- Nav Tabs -->
+      <ul class="nav nav-tabs px-3 pt-2 bg-light border-bottom">
+        <li class="nav-item">
+          <button class="nav-link" [class.active]="pestanaActiva === 'datos'" (click)="pestanaActiva = 'datos'">
+            <i class="bi bi-person-vcard me-1"></i> Datos Personales
+          </button>
+        </li>
+        <li class="nav-item">
+          <button class="nav-link" [class.active]="pestanaActiva === 'seguridad'" (click)="pestanaActiva = 'seguridad'">
+            <i class="bi bi-key me-1"></i> Contraseña
+          </button>
+        </li>
+        <li class="nav-item">
+          <button class="nav-link text-danger" [class.active]="pestanaActiva === 'baja'" (click)="pestanaActiva = 'baja'">
+            <i class="bi bi-person-x me-1"></i> Darme de Baja
+          </button>
+        </li>
+      </ul>
+
+      <!-- Body -->
+      <div class="modal-body p-4">
+        @if (cargando) {
+        <div class="text-center py-4">
+          <div class="spinner-border text-primary" role="status"></div>
+          <p class="mt-2 text-muted small">Cargando datos de perfil...</p>
+        </div>
+        } @else {
+
+        <!-- Pestaña 1: Datos Personales (US12) -->
+        @if (pestanaActiva === 'datos') {
+        @if (errorPerfil) {
+        <div class="alert alert-danger py-2 px-3 small mb-3">
+          <i class="bi bi-exclamation-circle-fill me-1"></i> {{ errorPerfil }}
+        </div>
+        }
+
+        <div class="card bg-light p-3 border-0 mb-3">
+          <div class="row g-2 small">
+            <div class="col-sm-6">
+              <span class="text-muted d-block">Correo Electrónico:</span>
+              <strong>{{ perfil?.email }}</strong>
+            </div>
+            <div class="col-sm-6">
+              <span class="text-muted d-block">Rol del Sistema:</span>
+              @if (perfil?.is_superuser) {
+                <span class="badge bg-dark border border-warning text-warning">
+                  <i class="bi bi-shield-lock-fill me-1"></i> Super Administrador
+                </span>
+              } @else {
+                <span class="badge bg-primary">{{ perfil?.rol?.nombre ?? 'Sin rol' }}</span>
+              }
+            </div>
+          </div>
+        </div>
+
+        <form [formGroup]="perfilForm" (ngSubmit)="guardarDatos()">
+          <div class="mb-3">
+            <label class="form-label fw-bold">Nombre Completo *</label>
+            <input type="text" class="form-control" formControlName="nombre"
+              [class.is-invalid]="perfilForm.get('nombre')?.invalid && perfilForm.get('nombre')?.touched">
+            @if (perfilForm.get('nombre')?.invalid && perfilForm.get('nombre')?.touched) {
+            <div class="invalid-feedback">El nombre es obligatorio (mínimo 2 caracteres).</div>
+            }
+          </div>
+
+          <div class="row mb-3">
+            <div class="col-md-6">
+              <label class="form-label fw-bold">DNI *</label>
+              <input type="text" class="form-control" formControlName="dni"
+                [class.is-invalid]="perfilForm.get('dni')?.invalid && perfilForm.get('dni')?.touched">
+              @if (perfilForm.get('dni')?.invalid && perfilForm.get('dni')?.touched) {
+              <div class="invalid-feedback">DNI válido requerido (7 u 8 dígitos numéricos).</div>
+              }
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-bold">Fecha de Nacimiento *</label>
+              <input type="date" class="form-control" formControlName="fecha_nacimiento"
+                [class.is-invalid]="perfilForm.get('fecha_nacimiento')?.invalid && perfilForm.get('fecha_nacimiento')?.touched">
+              @if (perfilForm.get('fecha_nacimiento')?.invalid && perfilForm.get('fecha_nacimiento')?.touched) {
+              <div class="invalid-feedback">La fecha de nacimiento es obligatoria.</div>
+              }
+            </div>
+          </div>
+
+          <div class="d-flex justify-content-end gap-2 mt-4">
+            <button type="button" class="btn btn-secondary" (click)="cerrarModal()" [disabled]="guardandoPerfil">Cancelar</button>
+            <button type="submit" class="btn btn-success" [disabled]="guardandoPerfil">
+              @if (guardandoPerfil) {
+                <span class="spinner-border spinner-border-sm me-1" role="status"></span> Guardando...
+              } @else {
+                <i class="bi bi-check-lg me-1"></i> Guardar Cambios
+              }
+            </button>
+          </div>
+        </form>
+        }
+
+        <!-- Pestaña 2: Contraseña -->
+        @if (pestanaActiva === 'seguridad') {
+        @if (errorPassword) {
+        <div class="alert alert-danger py-2 px-3 small mb-3">
+          <i class="bi bi-exclamation-circle-fill me-1"></i> {{ errorPassword }}
+        </div>
+        }
+
+        <form [formGroup]="passwordForm" (ngSubmit)="cambiarPassword()">
+          <div class="mb-3">
+            <label class="form-label fw-bold">Contraseña Actual *</label>
+            <div class="input-group">
+              <input [type]="verPasswordActual ? 'text' : 'password'" class="form-control" formControlName="password_actual"
+                placeholder="Ingresá tu clave actual"
+                [class.is-invalid]="passwordForm.get('password_actual')?.invalid && passwordForm.get('password_actual')?.touched">
+              <button class="btn btn-outline-secondary" type="button" (click)="verPasswordActual = !verPasswordActual">
+                <i [class]="verPasswordActual ? 'bi bi-eye-slash' : 'bi bi-eye'"></i>
+              </button>
+            </div>
+            @if (passwordForm.get('password_actual')?.invalid && passwordForm.get('password_actual')?.touched) {
+            <div class="invalid-feedback d-block">La contraseña actual es requerida.</div>
+            }
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-bold">Nueva Contraseña *</label>
+            <div class="input-group">
+              <input [type]="verPasswordNueva ? 'text' : 'password'" class="form-control" formControlName="nueva_password"
+                placeholder="Ingresá tu nueva clave"
+                [class.is-invalid]="passwordForm.get('nueva_password')?.invalid && passwordForm.get('nueva_password')?.touched">
+              <button class="btn btn-outline-secondary" type="button" (click)="verPasswordNueva = !verPasswordNueva">
+                <i [class]="verPasswordNueva ? 'bi bi-eye-slash' : 'bi bi-eye'"></i>
+              </button>
+            </div>
+            @if (passwordForm.get('nueva_password')?.invalid && passwordForm.get('nueva_password')?.touched) {
+            <div class="text-danger small mt-1">
+              Mínimo 9 caracteres, con al menos una letra, un número y un símbolo especial (sin espacios).
+            </div>
+            } @else {
+            <div class="form-text small text-muted">
+              Política OWASP: ≥ 9 caracteres, letra, número y símbolo.
+            </div>
+            }
+          </div>
+
+          <div class="d-flex justify-content-end gap-2 mt-4">
+            <button type="button" class="btn btn-secondary" (click)="cerrarModal()" [disabled]="guardandoPassword">Cancelar</button>
+            <button type="submit" class="btn btn-primary" [disabled]="guardandoPassword">
+              @if (guardandoPassword) {
+                <span class="spinner-border spinner-border-sm me-1" role="status"></span> Actualizando...
+              } @else {
+                <i class="bi bi-key-fill me-1"></i> Actualizar Contraseña
+              }
+            </button>
+          </div>
+        </form>
+        }
+
+        <!-- Pestaña 3: Darme de Baja (US11) -->
+        @if (pestanaActiva === 'baja') {
+        <div class="p-3 bg-light rounded border border-danger-subtle">
+          <h6 class="text-danger fw-bold mb-2">
+            <i class="bi bi-exclamation-triangle-fill me-1"></i> Solicitud de Baja de Cuenta
+          </h6>
+          <p class="small text-muted mb-3">
+            Conforme a las políticas de privacidad y derechos del usuario, podés solicitar la desactivación de tu cuenta en cualquier momento. Al darte de baja:
+          </p>
+          <ul class="small text-muted mb-3 ps-3">
+            <li>Tu sesión se cerrará de inmediato en todos los dispositivos.</li>
+            <li>Tu cuenta quedará en estado inactivo y no podrás iniciar sesión hasta que un administrador la reactive.</li>
+            <li>Los registros históricos de movimientos y auditoría se preservan por seguridad del sistema.</li>
+          </ul>
+
+          @if (!confirmandoBaja) {
+          <button type="button" class="btn btn-outline-danger" (click)="confirmandoBaja = true">
+            <i class="bi bi-trash-fill me-1"></i> Solicitar baja de mi cuenta
+          </button>
+          } @else {
+          <div class="alert alert-danger py-2 px-3 small mb-3">
+            <strong>¿Confirmás que querés desactivar tu cuenta ahora?</strong>
+          </div>
+          <div class="d-flex gap-2">
+            <button type="button" class="btn btn-secondary btn-sm" (click)="confirmandoBaja = false" [disabled]="solicitandoBaja">
+              Cancelar
+            </button>
+            <button type="button" class="btn btn-danger btn-sm" (click)="confirmarDarmeDeBaja()" [disabled]="solicitandoBaja">
+              @if (solicitandoBaja) {
+                <span class="spinner-border spinner-border-sm me-1" role="status"></span> Desactivando...
+              } @else {
+                <i class="bi bi-check-lg me-1"></i> Sí, confirmar baja
+              }
+            </button>
+          </div>
+          }
+        </div>
+        }
+
+        }
+      </div>
+
+    </div>
+  </div>
+</div>
+}
