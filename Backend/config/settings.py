@@ -15,10 +15,11 @@ SECRET_KEY = config('SECRET_KEY')
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = config('DEBUG', default=False, cast=bool)
 
-# ALLOWED_HOSTS configurables o abiertas para desarrollo y acceso desde red local / emuladores móviles
+# TK46: ALLOWED_HOSTS sin comodín '*'. Por defecto solo hosts locales
+# (10.0.2.2 = la PC vista desde el emulador de Android, ADR-0006). En producción se definen en el .env.
 ALLOWED_HOSTS = config(
     'ALLOWED_HOSTS',
-    default='*',
+    default='localhost,127.0.0.1,10.0.2.2',
     cast=lambda v: [s.strip() for s in v.split(',') if s.strip()]
 )
 
@@ -138,11 +139,12 @@ STORAGES = {
         "BACKEND": "whitenoise.storage.CompressedStaticFilesStorage",
     },
 }
-# CORS - Permitir orígenes de desarrollo web y conexiones desde apps móviles
-CORS_ALLOW_ALL_ORIGINS = True
+# TK46 (Plan de Seguridad 6.c): CORS solo para los orígenes del frontend (Angular local y producción en Vercel).
+# La app Android no usa CORS (es una regla de los navegadores), así que no se ve afectada.
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:4200",
     "http://127.0.0.1:4200",
+    "https://todo-stock.vercel.app",
 ]
 REST_FRAMEWORK = {
     'EXCEPTION_HANDLER': 'inventario.exceptions.custom_exception_handler',

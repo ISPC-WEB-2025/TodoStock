@@ -12,7 +12,7 @@ Documentación técnica del catálogo de endpoints actualizado para el consumo d
 | **Emulador Android** | `http://10.0.2.2:8000/` | `10.0.2.2` apunta al `localhost` del host de desarrollo. |
 | **Dispositivo Físico (Wi-Fi local)** | `http://<IP_LOCAL_PC>:8000/` | Misma red Wi-Fi. Ej: `http://192.168.1.50:8000/`. |
 
-> **CORS y ALLOWED_HOSTS:** El backend tiene `CORS_ALLOW_ALL_ORIGINS = True` y `ALLOWED_HOSTS = ['*']` en desarrollo para admitir peticiones desde emuladores y dispositivos físicos sin bloqueos.
+> **CORS y ALLOWED_HOSTS (TK46):** CORS solo admite los orígenes del frontend web (la app Android no usa CORS, así que no se ve afectada). `ALLOWED_HOSTS` ya no usa `*`: por defecto acepta `localhost`, `127.0.0.1` y `10.0.2.2` (emulador). Para probar desde un celular físico, agregá la IP de tu PC en `ALLOWED_HOSTS` del `.env`. El login se bloquea temporalmente tras varios intentos fallidos desde la misma IP (responde `429`).
 
 ---
 
