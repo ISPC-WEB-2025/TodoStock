@@ -1,0 +1,73 @@
+@if (mostrar) {
+<div class="modal-backdrop fade show"></div>
+<div class="modal fade show d-block" tabindex="-1" role="dialog" aria-labelledby="modalContactoTitulo" aria-modal="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content shadow-lg border-0">
+      
+      <!-- Header -->
+      <div class="modal-header bg-dark text-white">
+        <h5 class="modal-title" id="modalContactoTitulo">
+          <i class="bi bi-headset me-2 text-warning"></i> Contacto y Soporte Técnico
+        </h5>
+        <button type="button" class="btn-close btn-close-white" aria-label="Cerrar" (click)="cerrarModal()" [disabled]="enviando"></button>
+      </div>
+
+      <!-- Body -->
+      <div class="modal-body p-4">
+        <p class="small text-muted mb-3">
+          ¿Tenés alguna consulta, inconveniente con el stock o sugerencia? Envianos tu mensaje y nuestro equipo de soporte se pondrá en contacto.
+        </p>
+
+        @if (errorMensaje) {
+        <div class="alert alert-danger py-2 px-3 small mb-3">
+          <i class="bi bi-exclamation-circle-fill me-1"></i> {{ errorMensaje }}
+        </div>
+        }
+
+        <form [formGroup]="contactoForm" (ngSubmit)="enviar()">
+          
+          <div class="mb-3">
+            <label class="form-label fw-bold">Asunto *</label>
+            <input type="text" class="form-control" formControlName="asunto" placeholder="Ej: Problema con remito o stock"
+              [class.is-invalid]="contactoForm.get('asunto')?.invalid && contactoForm.get('asunto')?.touched">
+            @if (contactoForm.get('asunto')?.invalid && contactoForm.get('asunto')?.touched) {
+            <div class="invalid-feedback">El asunto es obligatorio (mínimo 3 caracteres).</div>
+            }
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-bold">Email de Contacto *</label>
+            <input type="email" class="form-control" formControlName="email" placeholder="tucorreo@empresa.com"
+              [class.is-invalid]="contactoForm.get('email')?.invalid && contactoForm.get('email')?.touched">
+            @if (contactoForm.get('email')?.invalid && contactoForm.get('email')?.touched) {
+            <div class="invalid-feedback">Ingresá un correo electrónico válido para recibir la respuesta.</div>
+            }
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-bold">Mensaje o Detalle *</label>
+            <textarea class="form-control" rows="4" formControlName="mensaje" placeholder="Escribí detalladamente tu consulta..."
+              [class.is-invalid]="contactoForm.get('mensaje')?.invalid && contactoForm.get('mensaje')?.touched"></textarea>
+            @if (contactoForm.get('mensaje')?.invalid && contactoForm.get('mensaje')?.touched) {
+            <div class="invalid-feedback">El mensaje es obligatorio (mínimo 5 caracteres).</div>
+            }
+          </div>
+
+          <div class="d-flex justify-content-end gap-2 mt-4">
+            <button type="button" class="btn btn-secondary" (click)="cerrarModal()" [disabled]="enviando">Cancelar</button>
+            <button type="submit" class="btn btn-primary" [disabled]="enviando">
+              @if (enviando) {
+                <span class="spinner-border spinner-border-sm me-1" role="status"></span> Enviando...
+              } @else {
+                <i class="bi bi-send-fill me-1"></i> Enviar Consulta
+              }
+            </button>
+          </div>
+        </form>
+
+      </div>
+
+    </div>
+  </div>
+</div>
+}
