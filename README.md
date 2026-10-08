@@ -142,10 +142,10 @@ DB_PASSWORD=root   # O tu contraseña de MySQL local
 DB_HOST=localhost
 DB_PORT=3306
 
-# Superadministrador inicial (opcional en desarrollo)
-# Email: admin@codelab.com | Password: AdminPassword123!
+# Superadministrador inicial: definí tu propia contraseña.
+# Si ADMIN_PASSWORD queda vacío, se genera una aleatoria y se muestra una sola vez por consola.
 ADMIN_EMAIL=admin@codelab.com
-ADMIN_PASSWORD=AdminPassword123!
+ADMIN_PASSWORD=tu_contraseña_segura
 ```
 
 **f.** Inicializar la base de datos:
@@ -164,7 +164,7 @@ Este script realiza de forma integral:
 2. Ejecución de migraciones de Django.
 3. Carga automática de los roles base (`roles.json`: `ADMINISTRADOR`, `VENTAS`, `DEPOSITO`).
 4. Creación de la estructura de tablas y datos de prueba completos de inventario y stock.
-5. Creación automática del usuario superadmin por defecto (`admin@codelab.com` / `AdminPassword123!`).
+5. Creación automática del usuario superadmin con el `ADMIN_EMAIL` y `ADMIN_PASSWORD` de tu `.env` (si `ADMIN_PASSWORD` está vacío, se genera una contraseña aleatoria y se muestra una sola vez).
 
 #### Opción B — Manual
 
@@ -177,7 +177,7 @@ Este script realiza de forma integral:
 
 **g.** Gestión de superusuarios:
 
-El setup automatizado ya deja configurado el superadmin por defecto (`admin@codelab.com` / `AdminPassword123!`). Si deseas crear o resetear un superadmin en cualquier momento, puedes ejecutar:
+El setup automatizado ya deja configurado el superadmin con las credenciales de tu `.env`. Si deseas crear o resetear un superadmin en cualquier momento, puedes ejecutar:
 
 ```bash
 python scripts/crear_superadmin.py
@@ -214,10 +214,10 @@ python manage.py runserver
 
 ### 💻 Entorno de Desarrollo Local y Credenciales Demo
 
-Si ejecutas el proyecto de manera local en tu máquina siguiendo los pasos de instalación anteriores, la base de datos se poblará automáticamente con la siguiente cuenta de administrador de prueba:
+Si ejecutas el proyecto de manera local en tu máquina siguiendo los pasos de instalación anteriores, la base de datos se poblará automáticamente con una cuenta de administrador de prueba:
 
-- **Email:** `admin@codelab.com`
-- **Contraseña:** `AdminPassword123!`
+- **Email:** el `ADMIN_EMAIL` de tu `.env` (por defecto `admin@codelab.com`)
+- **Contraseña:** el `ADMIN_PASSWORD` de tu `.env` (nunca se publica en el repositorio)
 - **Rol:** `ADMINISTRADOR` (Acceso completo a Dashboard, Gestión de Productos, Proveedores, Sucursales, Usuarios y Configuración de Stock).
 
 Las rutas locales operarán en:
