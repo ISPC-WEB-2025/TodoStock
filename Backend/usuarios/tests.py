@@ -329,3 +329,266 @@ class JerarquiaAdministrativaTests(TestCase):
         )
         self.assertEqual(login_resp.status_code, status.HTTP_200_OK)
 
+
+class AuthRobustezTests(TestCase):
+    """
+    Tests de robustez y blindaje de autenticación (Issues #294, #295, #296 / ADR-0008).
+    - Login de cuenta inactiva retorna 403 ("Cuenta pendiente de aprobación").
+    - Login expone campo 'is_superuser'.
+    - Superadministrador no puede autodesactivarse vía DELETE /api/usuarios/me/.
+    - Usuario regular sí puede autodesactivarse vía DELETE /api/usuarios/me/.
+    - Endpoints públicos (login, registro, contacto) funcionan con token inválido en header.
+    - Registro rechaza DNI inválido (alfanumérico o longitud distinta de 7-8) con 400.
+    - Registro rechaza DNI o email duplicado con 400 JSON sin error 500 HTML.
+    """
+    def setUp(self):
+        self.client = APIClient()
+        self.role_op = Role.objects.create(nombre="EMPLEADO", descripcion="Empleado")
+        self.superadmin = Usuario.objects.create_user(
+            email="super_robust@test.com",
+            nombre="Super Robusto",
+            dni="10101010",
+            fecha_nacimiento="1980-01-01",
+            password="SuperPassword1!",
+            is_staff=True,
+            is_superuser=True,
+            is_active=True,
+        )
+        self.usuario_inactivo = Usuario.objects.create_user(
+            email="inactivo@test.com",
+            nombre="Usuario Inactivo",
+            dni="20202020",
+            fecha_nacimiento="1990-02-02",
+            password="InactivoPassword1!",
+            is_active=False,
+        )
+        self.usuario_activo = Usuario.objects.create_user(
+            email="activo@test.com",
+            nombre="Usuario Activo",
+            dni="30303030",
+            fecha_nacimiento="1995-03-03",
+            password="ActivoPassword1!",
+            rol=self.role_op,
+            is_active=True,
+        )
+
+    def test_login_inactivo_returns_403(self):
+        resp = self.client.post(
+            "/api/usuarios/login/",
+            {"email": "inactivo@test.com", "password": "InactivoPassword1!"},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertIn("error", resp.data)
+        self.assertEqual(resp.data["error"], "Cuenta pendiente de aprobación por el administrador.")
+
+    def test_login_incorrect_credentials_returns_401_even_if_user_exists(self):
+        resp = self.client.post(
+            "/api/usuarios/login/",
+            {"email": "inactivo@test.com", "password": "ClaveEquivocada1!"},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, status.HTTP_401_UNAUTHORIZED)
+        self.assertIn("error", resp.data)
+
+    def test_login_exposes_is_superuser(self):
+        # Login superusuario
+        resp_super = self.client.post(
+            "/api/usuarios/login/",
+            {"email": "super_robust@test.com", "password": "SuperPassword1!"},
+            format="json",
+        )
+        self.assertEqual(resp_super.status_code, status.HTTP_200_OK)
+        self.assertTrue(resp_super.data.get("is_superuser"))
+
+        # Login usuario normal
+        resp_normal = self.client.post(
+            "/api/usuarios/login/",
+            {"email": "activo@test.com", "password": "ActivoPassword1!"},
+            format="json",
+        )
+        self.assertEqual(resp_normal.status_code, status.HTTP_200_OK)
+        self.assertFalse(resp_normal.data.get("is_superuser"))
+
+    def test_superadmin_cannot_self_deactivate(self):
+        login_resp = self.client.post(
+            "/api/usuarios/login/",
+            {"email": "super_robust@test.com", "password": "SuperPassword1!"},
+            format="json",
+        )
+        token = login_resp.data["access"]
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+
+        resp = self.client.delete("/api/usuarios/me/")
+        self.assertEqual(resp.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertIn("error", resp.data)
+
+        # Verificar que el superadmin sigue activo
+        self.superadmin.refresh_from_db()
+        self.assertTrue(self.superadmin.is_active)
+
+    def test_regular_user_can_self_deactivate(self):
+        login_resp = self.client.post(
+            "/api/usuarios/login/",
+            {"email": "activo@test.com", "password": "ActivoPassword1!"},
+            format="json",
+        )
+        token = login_resp.data["access"]
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+
+        resp = self.client.delete("/api/usuarios/me/")
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        self.assertIn("mensaje", resp.data)
+
+        self.usuario_activo.refresh_from_db()
+        self.assertFalse(self.usuario_activo.is_active)
+
+    def test_public_endpoints_ignore_invalid_or_expired_bearer_token(self):
+        # Con token corrupto o expirado
+        self.client.credentials(HTTP_AUTHORIZATION="Bearer token_expirado_o_invalido_xyz")
+
+        # 1. Login público
+        resp_login = self.client.post(
+            "/api/usuarios/login/",
+            {"email": "activo@test.com", "password": "ActivoPassword1!"},
+            format="json",
+        )
+        self.assertEqual(resp_login.status_code, status.HTTP_200_OK)
+
+        # 2. Contacto público
+        resp_contacto = self.client.post(
+            "/api/usuarios/contacto/",
+            {
+                "email": "contacto@test.com",
+                "asunto": "Consulta de prueba",
+                "mensaje": "Mensaje de consulta",
+            },
+            format="json",
+        )
+        self.assertEqual(resp_contacto.status_code, status.HTTP_200_OK)
+
+        # 3. Registro público
+        resp_registro = self.client.post(
+            "/api/usuarios/registro/",
+            {
+                "nombre": "Prueba Token Header",
+                "email": "token_header@test.com",
+                "dni": "77889900",
+                "fdn": "1993-04-04",
+                "password": "PasswordValida1!",
+            },
+            format="json",
+        )
+        self.assertEqual(resp_registro.status_code, status.HTTP_201_CREATED)
+
+    def test_registro_dni_format_validations(self):
+        self.client.credentials()
+
+        # DNI con letras
+        resp_letras = self.client.post(
+            "/api/usuarios/registro/",
+            {
+                "nombre": "DNI Letras",
+                "email": "dniletras@test.com",
+                "dni": "1234ABCD",
+                "fdn": "1990-01-01",
+                "password": "PasswordValida1!",
+            },
+            format="json",
+        )
+        self.assertEqual(resp_letras.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("error", resp_letras.data)
+
+        # DNI demasiado corto (6 dígitos)
+        resp_corto = self.client.post(
+            "/api/usuarios/registro/",
+            {
+                "nombre": "DNI Corto",
+                "email": "dnicorto@test.com",
+                "dni": "123456",
+                "fdn": "1990-01-01",
+                "password": "PasswordValida1!",
+            },
+            format="json",
+        )
+        self.assertEqual(resp_corto.status_code, status.HTTP_400_BAD_REQUEST)
+
+        # DNI demasiado largo (9 dígitos)
+        resp_largo = self.client.post(
+            "/api/usuarios/registro/",
+            {
+                "nombre": "DNI Largo",
+                "email": "dnilargo@test.com",
+                "dni": "123456789",
+                "fdn": "1990-01-01",
+                "password": "PasswordValida1!",
+            },
+            format="json",
+        )
+        self.assertEqual(resp_largo.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_registro_dni_and_email_uniqueness_returns_400_json_not_500(self):
+        self.client.credentials()
+
+        # DNI ya existente (pertenece a usuario_activo: 30303030)
+        resp_dni_dup = self.client.post(
+            "/api/usuarios/registro/",
+            {
+                "nombre": "Otro Nombre",
+                "email": "nuevo_email@test.com",
+                "dni": "30303030",
+                "fdn": "1990-01-01",
+                "password": "PasswordValida1!",
+            },
+            format="json",
+        )
+        self.assertEqual(resp_dni_dup.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("error", resp_dni_dup.data)
+
+        # Email ya existente (pertenece a usuario_activo: activo@test.com)
+        resp_email_dup = self.client.post(
+            "/api/usuarios/registro/",
+            {
+                "nombre": "Otro Nombre",
+                "email": "activo@test.com",
+                "dni": "45678901",
+                "fdn": "1990-01-01",
+                "password": "PasswordValida1!",
+            },
+            format="json",
+        )
+        self.assertEqual(resp_email_dup.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("error", resp_email_dup.data)
+
+    def test_contacto_requires_email(self):
+        self.client.credentials()
+        resp = self.client.post(
+            "/api/usuarios/contacto/",
+            {"asunto": "Consulta sin email", "mensaje": "Detalle de consulta"},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("error", resp.data)
+        self.assertEqual(
+            resp.data["error"], "El correo electrónico de contacto es obligatorio."
+        )
+
+    def test_admin_cannot_self_reset_password(self):
+        login_resp = self.client.post(
+            "/api/usuarios/login/",
+            {"email": "super_robust@test.com", "password": "SuperPassword1!"},
+            format="json",
+        )
+        token = login_resp.data["access"]
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+
+        resp = self.client.post(
+            f"/api/usuarios/{self.superadmin.id}/reset-password/",
+            {"nueva_password": "NuevaSuperClave1!"},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("error", resp.data)
+        self.assertIn("propia cuenta", resp.data["error"])
+
+

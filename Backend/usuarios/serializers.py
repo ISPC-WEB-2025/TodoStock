@@ -107,9 +107,9 @@ class UsuarioSerializer(serializers.ModelSerializer):
         # Toda gestión de credenciales se canaliza por reset-password o me/change-password.
         validated_data.pop("password", None)
 
-        # Solo el Super Administrador puede asignar o reasignar el rol ADMINISTRADOR
+        # Solo el Super Administrador puede promover o reasignar al rol ADMINISTRADOR
         nuevo_rol = validated_data.get("rol", None)
-        if nuevo_rol and nuevo_rol.nombre.upper() == "ADMINISTRADOR":
+        if nuevo_rol and nuevo_rol.nombre.upper() == "ADMINISTRADOR" and instance.rol != nuevo_rol:
             request = self.context.get("request")
             if request and not getattr(request.user, "is_superuser", False):
                 raise serializers.ValidationError(
@@ -164,3 +164,56 @@ class CambiarPasswordSerializer(serializers.Serializer):
     def validate_nueva_password(self, value):
         validar_password_robusta(value)
         return value
+
+
+class RegistroUsuarioSerializer(serializers.ModelSerializer):
+    """
+    Serializer para el endpoint público de registro (/api/usuarios/registro/).
+    Acepta 'fdn' o 'fecha_nacimiento' para retrocompatibilidad con clientes web y mobile.
+    Valida política de contraseñas OWASP, formato de DNI (7-8 dígitos) y unicidad.
+    """
+    password = serializers.CharField(write_only=True, required=True)
+    fdn = serializers.DateField(write_only=True, required=False)
+
+    class Meta:
+        model = Usuario
+        fields = [
+            "nombre",
+            "email",
+            "dni",
+            "fecha_nacimiento",
+            "fdn",
+            "password",
+        ]
+        extra_kwargs = {
+            "fecha_nacimiento": {"required": False},
+        }
+
+    def validate_password(self, value):
+        validar_password_robusta(value)
+        return value
+
+    def validate(self, attrs):
+        # Soportar tanto 'fdn' como 'fecha_nacimiento'
+        fdn = attrs.pop("fdn", None)
+        if fdn and not attrs.get("fecha_nacimiento"):
+            attrs["fecha_nacimiento"] = fdn
+
+        if not attrs.get("fecha_nacimiento"):
+            raise serializers.ValidationError(
+                {"fecha_nacimiento": "La fecha de nacimiento es obligatoria."}
+            )
+
+        return attrs
+
+    def create(self, validated_data):
+        return Usuario.objects.create_user(
+            email=validated_data["email"],
+            nombre=validated_data["nombre"],
+            dni=validated_data["dni"],
+            fecha_nacimiento=validated_data["fecha_nacimiento"],
+            password=validated_data["password"],
+            is_active=False,
+            rol=None,
+        )
+

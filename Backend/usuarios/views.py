@@ -17,12 +17,14 @@ from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework import serializers
+from django.db import IntegrityError
 from .models import Usuario, Role
 from .serializers import (
     UsuarioSerializer,
     PerfilUsuarioSerializer,
     RoleSerializer,
     CambiarPasswordSerializer,
+    RegistroUsuarioSerializer,
     validar_password_robusta,
 )
 from rest_framework.permissions import BasePermission, SAFE_METHODS
@@ -61,9 +63,9 @@ class EsAdminParaModificar(BasePermission):
                 self.message = "No se puede desactivar la cuenta del Super Administrador principal."
                 return False
 
-            # Si el target es Administrador o Superusuario, solo el Super Administrador puede operar sobre él
+            # Si el target es Administrador o Superusuario distinto a uno mismo, solo el Super Administrador puede operar sobre él
             target_es_admin = getattr(obj, "es_admin", False) or getattr(obj, "is_superuser", False)
-            if target_es_admin and not getattr(request.user, "is_superuser", False):
+            if target_es_admin and obj != request.user and not getattr(request.user, "is_superuser", False):
                 self.message = "Acción reservada al Super Administrador."
                 return False
 
@@ -76,6 +78,7 @@ class EsAdminParaModificar(BasePermission):
 
 class LoginUsuarioView(APIView):
     permission_classes = [AllowAny]
+    authentication_classes = []
 
     def post(
         self, request
@@ -112,6 +115,7 @@ class LoginUsuarioView(APIView):
                     "email": user.email,
                     "es_admin": user.es_admin,
                     "es_empleado": user.es_empleado,  # booleanos para control de UI según rol (ADR-0007)
+                    "is_superuser": user.is_superuser,
                 },
                 status=status.HTTP_200_OK,
             )
@@ -124,38 +128,36 @@ class LoginUsuarioView(APIView):
 
 class RegistroUsuarioView(APIView):
     permission_classes = [AllowAny]  # Permite acceso sin hacer login
+    authentication_classes = []
 
     def post(self, request):
-        nombre = request.data.get("nombre")
-        email = request.data.get("email")
-        dni = request.data.get("dni")
-        fdn = request.data.get("fdn")
-        password = request.data.get("password")
+        serializer = RegistroUsuarioSerializer(data=request.data)
+        if not serializer.is_valid():
+            # Extraer primer error de detalle si está disponible para mensaje legible
+            first_error_msg = None
+            for field, errors in serializer.errors.items():
+                if isinstance(errors, list) and len(errors) > 0:
+                    first_error_msg = f"{field}: {errors[0]}" if field != "non_field_errors" else str(errors[0])
+                    break
+                elif isinstance(errors, str):
+                    first_error_msg = errors
+                    break
 
-        # Validaciones
-        if not nombre or not email or not password:
             return Response(
-                {"error": "Falta datos de nombre, email o contraseña."},
+                {
+                    "error": first_error_msg or "Datos de registro inválidos.",
+                    "detalles": serializer.errors,
+                },
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        if Usuario.objects.filter(email=email).exists():
-            return Response(
-                {"error": "Este email ya existe."}, status=status.HTTP_400_BAD_REQUEST
-            )
-
-        # Validar política de contraseña robusta (US07, TK47)
         try:
-            validar_password_robusta(password)
-        except serializers.ValidationError as e:
-            msg = e.detail[0] if isinstance(e.detail, list) else str(e.detail)
-            return Response({"error": msg}, status=status.HTTP_400_BAD_REQUEST)
-
-        # Crear el usuario como inactivo — requiere aprobación del administrador (US07)
-        Usuario.objects.create_user(
-            nombre=nombre, email=email, dni=dni, fecha_nacimiento=fdn,
-            password=password, is_active=False,
-        )
+            serializer.save()
+        except IntegrityError:
+            return Response(
+                {"error": "El DNI o email ya se encuentra registrado."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         return Response(
             {"mensaje": "Cuenta creada. Aguardá la aprobación del administrador para poder ingresar."},
@@ -210,6 +212,11 @@ class UserViewSet(viewsets.ModelViewSet):
             return Response(serializer.data, status=status.HTTP_200_OK)
 
         elif request.method == "DELETE":
+            if getattr(request.user, "is_superuser", False):
+                return Response(
+                    {"error": "No se puede desactivar la cuenta del Super Administrador principal."},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
             request.user.is_active = False
             request.user.save()
             return Response(
@@ -270,6 +277,14 @@ class UserViewSet(viewsets.ModelViewSet):
         El reseteo de cuentas ADMINISTRADOR o Superusuario está reservado al Super Administrador.
         """
         usuario = self.get_object()
+        if usuario == request.user:
+            return Response(
+                {
+                    "error": "No puedes usar el reseteo administrativo sobre tu propia cuenta. Utiliza 'Mi Perfil' para cambiar tu contraseña ingresando la clave actual."
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         nueva_password = request.data.get("nueva_password") or request.data.get("password")
         if not nueva_password:
             return Response(
@@ -312,11 +327,18 @@ class ContactoSoporteView(APIView):
     No requiere configuracion SMTP; homogeneo con el resto de la API REST (Retrofit en Android).
     """
     permission_classes = [AllowAny]
+    authentication_classes = []
 
     def post(self, request):
-        email = request.data.get("email") or getattr(request.user, "email", "anonimo")
+        email = (request.data.get("email") or getattr(request.user, "email", "")).strip()
         asunto = request.data.get("asunto", "").strip()
         mensaje = request.data.get("mensaje", "").strip()
+
+        if not email:
+            return Response(
+                {"error": "El correo electrónico de contacto es obligatorio."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         if not asunto or not mensaje:
             return Response(
@@ -327,6 +349,10 @@ class ContactoSoporteView(APIView):
         logger.info(
             "[SOPORTE] De: %s | Asunto: %s | Mensaje: %s",
             email, asunto, mensaje,
+        )
+        print(
+            f"\n📨 [SOPORTE RECIBIDO]\n   De: {email}\n   Asunto: {asunto}\n   Mensaje: {mensaje}\n",
+            flush=True,
         )
 
         return Response(

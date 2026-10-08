@@ -33,11 +33,9 @@
                             <input type="password" class="form-control form-control-lg" formControlName="password"
                                 id="password" placeholder="********">
                             @if (password?.errors && password?.touched) {
-                            @if (password?.hasError("required")) {
-                            <div class="text-danger">{{passwordNoExiste}}</div>
-                            }
-                            @else if (password?.hasError("minlength") && !password?.hasError("required")) {}
-                            <div class="text-danger">{{passwordInvalido}}</div>
+                                @if (password?.hasError("required")) {
+                                    <div class="text-danger">{{passwordNoExiste}}</div>
+                                }
                             }
                         </div>
                         <div class="mb-3 d-flex justify-content-center align-items-center">

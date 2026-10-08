@@ -33,11 +33,13 @@ export class RegisterComponent {
   readonly emailInvalido: string =
     'Los datos para el correo electrónico no son válidos.';
   readonly passwordVacio: string = 'Ingresá una contraseña.';
-  readonly passwordCorto: string =
-    'La contraseña tiene que tener 8 o más caracteres.';
+  readonly passwordInvalidoOwasp: string =
+    'La contraseña debe tener al menos 9 caracteres, incluyendo letras, números y un símbolo especial (sin espacios).';
   readonly passwordNoCoincide: string = 'Las contraseñas no coinciden.';
   readonly dniInvalido: string = 'El número de documento tiene que ser único y tener entre 7 u 8 dígitos.';
   readonly fdnInvalido: string = 'Ingresá una fecha de nacimiento.';
+  readonly mensajeExito: string =
+    '¡Cuenta creada con éxito! Tu cuenta está pendiente de aprobación por el administrador antes de poder iniciar sesión.';
   // URI de imagenes
   readonly imagenURI: string = 'assets/deposito.png';
   readonly cajaURI: string = 'assets/ToDoLogosf.png';
@@ -45,7 +47,12 @@ export class RegisterComponent {
   // Registro de formularios
   public registerForm!: FormGroup;
   public registerErrored: boolean = false;
+  public backendError: string | null = null;
+  public registroExitoso: boolean = false;
   protected esconderPassword: boolean = true;
+
+  // Regex OWASP: >=9 caracteres, >=1 letra, >=1 número, >=1 símbolo, sin espacios
+  private readonly owaspPasswordPattern = /^(?=.*[a-zA-Z])(?=.*\d)(?=.*[^a-zA-Z0-9\s])\S{9,}$/;
 
   constructor(private formBuilder: FormBuilder) {
     this.registerForm = this.formBuilder.group(
@@ -54,10 +61,10 @@ export class RegisterComponent {
         email: ['', [Validators.required, Validators.pattern(/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/)], []],
         dni: ['', [Validators.required, Validators.pattern(/^\d{7,8}$/)], []],
         fdn: ['', [Validators.required], []],
-        password: ['', [Validators.required, Validators.minLength(8)], []],
+        password: ['', [Validators.required, Validators.pattern(this.owaspPasswordPattern)], []],
         confirm_password: [
           '',
-          [Validators.required, Validators.minLength(8)],
+          [Validators.required],
           [],
         ],
       },
@@ -96,6 +103,8 @@ export class RegisterComponent {
   public onEnviar(event: Event) {
     event.preventDefault(); // Previene que el navegador haga su trabajo por defecto, ahora lo manejamos desde acá
 
+    this.backendError = null;
+
     if (this.registerForm.valid) {
       const registerData = this.registerForm.value;
 
@@ -103,19 +112,44 @@ export class RegisterComponent {
       const email: string = registerData.email;
       const dni: number = registerData.dni;
       const fdn: any = registerData.fdn;
-      const password: string = registerData.password; // ¿Quizas algo acá para validar una última vez si las dos contras coinciden?
+      const password: string = registerData.password;
 
       this.userAuthService.registrar(nombre, email, dni, fdn, password).subscribe({
-        // TODO: En vez de console.log, ¡tambien deberia mostrarse un modal!
         next: () => {
           console.log("¡Usuario creado con exito!");
-          setTimeout(() => this.router.navigate(['/login']), 2000);
+          this.backendError = null;
+          this.registroExitoso = true;
+          this.registerErrored = false;
+          setTimeout(() => this.router.navigate(['/login']), 4000);
         },
         error: (error: any) => {
           console.error("¡Error al registrar usuario!", error);
+          this.registroExitoso = false;
+          this.registerErrored = true;
+          if (error.error) {
+            if (typeof error.error === 'string') {
+              this.backendError = error.error;
+            } else if (error.error.error) {
+              this.backendError = error.error.error;
+            } else if (error.error.detail) {
+              this.backendError = error.error.detail;
+            } else if (typeof error.error === 'object') {
+              const firstKey = Object.keys(error.error)[0];
+              if (firstKey && Array.isArray(error.error[firstKey])) {
+                this.backendError = `${firstKey}: ${error.error[firstKey].join(', ')}`;
+              } else if (firstKey && typeof error.error[firstKey] === 'string') {
+                this.backendError = `${firstKey}: ${error.error[firstKey]}`;
+              } else {
+                this.backendError = 'Error al registrar usuario. Verificá los datos ingresados.';
+              }
+            } else {
+              this.backendError = 'Error al registrar usuario.';
+            }
+          } else {
+            this.backendError = 'No se pudo conectar con el servidor.';
+          }
         },
       });
-      this.registerErrored = false;
     } else {
       this.registerErrored = true;
       this.registerForm.markAllAsTouched();
