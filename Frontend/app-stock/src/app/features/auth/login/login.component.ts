@@ -43,7 +43,7 @@ export class LoginComponent {
   constructor() {
     this.loginForm = this.formBuilder.group({
       email: ['', [Validators.required, Validators.email], []],
-      password: ['', [Validators.required, Validators.minLength(8)], []],
+      password: ['', [Validators.required], []],
       recordar: ['', []],
     });
   }
@@ -63,6 +63,9 @@ export class LoginComponent {
 
   public onEnviar(event: Event) {
     event.preventDefault(); // Previene que el navegador haga su trabajo por defecto, ahora lo manejamos desde acá
+
+    this.loginError = false;
+    this.pendienteAprobacion = false;
 
     // Procedemos si todos los datos del formulario estan llenados y son válidos antes de contactar con el backend
     if (this.loginForm.valid) {
@@ -89,9 +92,14 @@ export class LoginComponent {
           }
         },
         error: (err) => {
-          // Si Django devuelve 401 Unauthorized, entramos acá
+          // Si Django devuelve 401 Unauthorized o 403 Forbidden
           console.error('Error de autenticación', err);
           this.loginError = true;
+          if (err.status === 403) {
+            this.pendienteAprobacion = true;
+          } else {
+            this.pendienteAprobacion = false;
+          }
         }
       });
     } else {
