@@ -458,7 +458,11 @@ class AuthRobustezTests(TestCase):
         # 2. Contacto público
         resp_contacto = self.client.post(
             "/api/usuarios/contacto/",
-            {"asunto": "Consulta de prueba", "mensaje": "Mensaje de consulta"},
+            {
+                "email": "contacto@test.com",
+                "asunto": "Consulta de prueba",
+                "mensaje": "Mensaje de consulta",
+            },
             format="json",
         )
         self.assertEqual(resp_contacto.status_code, status.HTTP_200_OK)
@@ -555,4 +559,36 @@ class AuthRobustezTests(TestCase):
         )
         self.assertEqual(resp_email_dup.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("error", resp_email_dup.data)
+
+    def test_contacto_requires_email(self):
+        self.client.credentials()
+        resp = self.client.post(
+            "/api/usuarios/contacto/",
+            {"asunto": "Consulta sin email", "mensaje": "Detalle de consulta"},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("error", resp.data)
+        self.assertEqual(
+            resp.data["error"], "El correo electrónico de contacto es obligatorio."
+        )
+
+    def test_admin_cannot_self_reset_password(self):
+        login_resp = self.client.post(
+            "/api/usuarios/login/",
+            {"email": "super_robust@test.com", "password": "SuperPassword1!"},
+            format="json",
+        )
+        token = login_resp.data["access"]
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+
+        resp = self.client.post(
+            f"/api/usuarios/{self.superadmin.id}/reset-password/",
+            {"nueva_password": "NuevaSuperClave1!"},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("error", resp.data)
+        self.assertIn("propia cuenta", resp.data["error"])
+
 

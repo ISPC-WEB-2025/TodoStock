@@ -5,7 +5,11 @@
             <h2>ToDo Stock</h2>
             <span>Panel Admin</span>
             <br>
-            <div><span class="sidebar-nav-name">{{ nombreUsuario }}</span></div>
+            <div>
+                <span class="sidebar-nav-name" style="cursor: pointer;" (click)="abrirPerfil()" title="Ver y editar mi perfil">
+                    <i class="bi bi-person-circle me-1"></i> {{ nombreUsuario }}
+                </span>
+            </div>
         </div>
         <nav class="sidebar-nav">
             <a routerLink="stock" routerLinkActive="active">Stock</a>
@@ -18,8 +22,10 @@
             }
             <a routerLink="proveedores" routerLinkActive="active">Proveedores</a>
         </nav>
-        <div class="sidebar-footer">
-            <a routerLink="/home">Volver al inicio</a>
+        <div class="sidebar-footer d-flex flex-column gap-2">
+            <a href="javascript:void(0)" (click)="abrirPerfil()"><i class="bi bi-person-gear me-1"></i> Mi Perfil</a>
+            <a href="javascript:void(0)" (click)="abrirContacto()"><i class="bi bi-headset me-1"></i> Contacto y Soporte</a>
+            <a routerLink="/home"><i class="bi bi-arrow-left me-1"></i> Volver al inicio</a>
         </div>
     </aside>
 
@@ -29,5 +35,9 @@
         </div>
         <router-outlet></router-outlet>
     </main>
+
+    <!-- Modales Globales de Perfil y Contacto -->
+    <app-modal-perfil [mostrar]="mostrarModalPerfil" (cerrar)="cerrarPerfil()"></app-modal-perfil>
+    <app-modal-contacto [mostrar]="mostrarModalContacto" (cerrar)="cerrarContacto()"></app-modal-contacto>
 
 </div>

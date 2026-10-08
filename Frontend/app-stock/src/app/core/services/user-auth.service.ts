@@ -32,6 +32,13 @@ export class UserAuthService {
           }
           storage.setItem('es_admin', response.es_admin.toString());
           storage.setItem('es_empleado', response.es_empleado.toString());
+          storage.setItem('is_superuser', (!!response.is_superuser).toString());
+          if (response.id) {
+            storage.setItem('usuario_id', response.id.toString());
+          }
+          if (response.email) {
+            storage.setItem('usuario_email', response.email);
+          }
 
           if (recordar) {
             localStorage.setItem('login_timestamp', Date.now().toString());
@@ -116,6 +123,47 @@ export class UserAuthService {
 
   isAdmin(): boolean {
     return (localStorage.getItem('es_admin') || sessionStorage.getItem('es_admin')) === 'true';
+  }
+
+  isSuperUser(): boolean {
+    return (localStorage.getItem('is_superuser') || sessionStorage.getItem('is_superuser')) === 'true';
+  }
+
+  obtenerPerfilActual(): Observable<any> {
+    return this.http.get<any>(`${environment.apiUrl}/usuarios/me/`).pipe(
+      tap(perfil => {
+        if (perfil) {
+          const storage = localStorage.getItem('access_token') ? localStorage : sessionStorage;
+          if (perfil.is_superuser !== undefined) {
+            storage.setItem('is_superuser', (!!perfil.is_superuser).toString());
+          }
+          if (perfil.es_admin !== undefined) {
+            storage.setItem('es_admin', (!!perfil.es_admin).toString());
+          }
+          if (perfil.es_empleado !== undefined) {
+            storage.setItem('es_empleado', (!!perfil.es_empleado).toString());
+          }
+          if (perfil.nombre) {
+            storage.setItem('nombre_usuario', perfil.nombre);
+          }
+          if (perfil.id) {
+            storage.setItem('usuario_id', perfil.id.toString());
+          }
+          if (perfil.email) {
+            storage.setItem('usuario_email', perfil.email);
+          }
+        }
+      })
+    );
+  }
+
+  getUsuarioId(): number | null {
+    const id = localStorage.getItem('usuario_id') || sessionStorage.getItem('usuario_id');
+    return id ? Number(id) : null;
+  }
+
+  getEmail(): string | null {
+    return localStorage.getItem('usuario_email') || sessionStorage.getItem('usuario_email');
   }
 
   logout(): void {

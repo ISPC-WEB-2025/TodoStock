@@ -63,9 +63,9 @@ class EsAdminParaModificar(BasePermission):
                 self.message = "No se puede desactivar la cuenta del Super Administrador principal."
                 return False
 
-            # Si el target es Administrador o Superusuario, solo el Super Administrador puede operar sobre él
+            # Si el target es Administrador o Superusuario distinto a uno mismo, solo el Super Administrador puede operar sobre él
             target_es_admin = getattr(obj, "es_admin", False) or getattr(obj, "is_superuser", False)
-            if target_es_admin and not getattr(request.user, "is_superuser", False):
+            if target_es_admin and obj != request.user and not getattr(request.user, "is_superuser", False):
                 self.message = "Acción reservada al Super Administrador."
                 return False
 
@@ -277,6 +277,14 @@ class UserViewSet(viewsets.ModelViewSet):
         El reseteo de cuentas ADMINISTRADOR o Superusuario está reservado al Super Administrador.
         """
         usuario = self.get_object()
+        if usuario == request.user:
+            return Response(
+                {
+                    "error": "No puedes usar el reseteo administrativo sobre tu propia cuenta. Utiliza 'Mi Perfil' para cambiar tu contraseña ingresando la clave actual."
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         nueva_password = request.data.get("nueva_password") or request.data.get("password")
         if not nueva_password:
             return Response(
@@ -322,9 +330,15 @@ class ContactoSoporteView(APIView):
     authentication_classes = []
 
     def post(self, request):
-        email = request.data.get("email") or getattr(request.user, "email", "anonimo")
+        email = (request.data.get("email") or getattr(request.user, "email", "")).strip()
         asunto = request.data.get("asunto", "").strip()
         mensaje = request.data.get("mensaje", "").strip()
+
+        if not email:
+            return Response(
+                {"error": "El correo electrónico de contacto es obligatorio."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         if not asunto or not mensaje:
             return Response(
@@ -335,6 +349,10 @@ class ContactoSoporteView(APIView):
         logger.info(
             "[SOPORTE] De: %s | Asunto: %s | Mensaje: %s",
             email, asunto, mensaje,
+        )
+        print(
+            f"\n📨 [SOPORTE RECIBIDO]\n   De: {email}\n   Asunto: {asunto}\n   Mensaje: {mensaje}\n",
+            flush=True,
         )
 
         return Response(

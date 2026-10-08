@@ -107,9 +107,9 @@ class UsuarioSerializer(serializers.ModelSerializer):
         # Toda gestión de credenciales se canaliza por reset-password o me/change-password.
         validated_data.pop("password", None)
 
-        # Solo el Super Administrador puede asignar o reasignar el rol ADMINISTRADOR
+        # Solo el Super Administrador puede promover o reasignar al rol ADMINISTRADOR
         nuevo_rol = validated_data.get("rol", None)
-        if nuevo_rol and nuevo_rol.nombre.upper() == "ADMINISTRADOR":
+        if nuevo_rol and nuevo_rol.nombre.upper() == "ADMINISTRADOR" and instance.rol != nuevo_rol:
             request = self.context.get("request")
             if request and not getattr(request.user, "is_superuser", False):
                 raise serializers.ValidationError(
