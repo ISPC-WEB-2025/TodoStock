@@ -40,6 +40,7 @@ INSTALLED_APPS = [
     "ventas",
     "vendedor",
     "corsheaders",
+    "axes",  # TK46: bloqueo temporal por intentos fallidos de login
 ]
 
 MIDDLEWARE = [
@@ -52,6 +53,7 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "axes.middleware.AxesMiddleware",  # TK46: va último
 ]
 
 ROOT_URLCONF = "config.urls"
@@ -110,8 +112,15 @@ AUTH_PASSWORD_VALIDATORS = [
 AUTH_USER_MODEL = 'usuarios.Usuario'
 
 AUTHENTICATION_BACKENDS = [
+    'axes.backends.AxesStandaloneBackend',  # TK46: tiene que ir primero
     'django.contrib.auth.backends.AllowAllUsersModelBackend',
 ]
+
+# TK46: límite de intentos fallidos de login (django-axes).
+AXES_FAILURE_LIMIT = config('AXES_FAILURE_LIMIT', default=5, cast=int)
+AXES_COOLOFF_TIME = timedelta(minutes=config('AXES_COOLOFF_MINUTES', default=15, cast=int))
+AXES_LOCKOUT_PARAMETERS = ['ip_address']
+AXES_RESET_ON_SUCCESS = True
 
 
 # Internationalization
