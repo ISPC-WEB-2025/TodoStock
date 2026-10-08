@@ -55,4 +55,28 @@ export class UsuarioService {
   eliminarUsuario(id: number): Observable<any> {
     return this.http.delete(`${this.apiUrl}${id}/`);
   }
+
+  // --- Autoservicio de Perfil y Darme de Baja (US11 / US12 / ADR-0008) ---
+
+  getMiPerfil(): Observable<Usuario> {
+    return this.http.get<Usuario>(`${this.apiUrl}me/`);
+  }
+
+  actualizarMiPerfil(datos: { nombre?: string; dni?: string; fecha_nacimiento?: string }): Observable<Usuario> {
+    return this.http.patch<Usuario>(`${this.apiUrl}me/`, datos);
+  }
+
+  cambiarMiPassword(datos: { password_actual: string; nueva_password: string }): Observable<any> {
+    return this.http.post<any>(`${this.apiUrl}me/change-password/`, datos);
+  }
+
+  darmeDeBaja(): Observable<any> {
+    return this.http.delete<any>(`${this.apiUrl}me/`);
+  }
+
+  // --- Contacto y Soporte (US04) ---
+
+  enviarContacto(datos: { asunto: string; mensaje: string; email?: string }): Observable<any> {
+    return this.http.post<any>(`${this.apiUrl}contacto/`, datos);
+  }
 }
