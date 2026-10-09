@@ -1,3 +1,4 @@
+import sys
 from pathlib import Path
 from datetime import timedelta
 from decouple import config
@@ -160,7 +161,7 @@ REST_FRAMEWORK = {
         'rest_framework.permissions.IsAuthenticated',
     ],
     'DEFAULT_THROTTLE_RATES': {
-        'anon': '5/min',  # TK46: límite de intentos de login (fuerza bruta)
+        'anon': None if ('test' in sys.argv) else '5/min',  # TK46: límite de intentos de login (desactivado en tests)
     },
 }
 
