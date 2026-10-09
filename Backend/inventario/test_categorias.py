@@ -20,7 +20,12 @@ class CategoriaTests(TestCase):
                 with open(estructura_sql, "r", encoding="utf-8") as f:
                     for stmt in f.read().split(";"):
                         stmt = stmt.strip()
-                        if stmt and not stmt.upper().startswith("DROP TABLE"):
+                        if (
+                            stmt
+                            and not stmt.upper().startswith("DROP TABLE")
+                            and not stmt.upper().startswith("CREATE DATABASE")
+                            and not stmt.upper().startswith("USE ")
+                        ):
                             try:
                                 cursor.execute(stmt)
                             except Exception:
@@ -29,7 +34,12 @@ class CategoriaTests(TestCase):
                 with open(movimiento_sql, "r", encoding="utf-8") as f:
                     for stmt in f.read().split(";"):
                         stmt = stmt.strip()
-                        if stmt and not stmt.upper().startswith("DROP TABLE"):
+                        if (
+                            stmt
+                            and not stmt.upper().startswith("DROP TABLE")
+                            and not stmt.upper().startswith("CREATE DATABASE")
+                            and not stmt.upper().startswith("USE ")
+                        ):
                             try:
                                 cursor.execute(stmt)
                             except Exception:
