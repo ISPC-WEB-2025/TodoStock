@@ -24,18 +24,18 @@ class CrearSuperadminSecurityTests(TestCase):
 
     @override_settings(DEBUG=True)
     @patch("scripts.crear_superadmin.config")
-    def test_crear_superadmin_dev_default(self, mock_config):
-        """En modo desarrollo (DEBUG=True) y sin variables en .env usa credenciales de desarrollo por defecto."""
+    def test_crear_superadmin_dev_sin_password_genera_aleatoria(self, mock_config):
+        """TK45: en desarrollo y sin ADMIN_PASSWORD tampoco hay contraseña fija: se autogenera una segura."""
         mock_config.side_effect = lambda key, default="": ""
 
         resultado = crear_superadmin()
 
         self.assertEqual(resultado["email"], "admin@codelab.com")
-        self.assertEqual(resultado["password"], "AdminPassword123!")
-        self.assertFalse(resultado["autogenerada"])
+        self.assertTrue(resultado["autogenerada"])
+        self.assertGreaterEqual(len(resultado["password"]), 20)
 
         user = Usuario.objects.get(email="admin@codelab.com")
-        self.assertTrue(user.check_password("AdminPassword123!"))
+        self.assertTrue(user.check_password(resultado["password"]))
         self.assertTrue(user.is_superuser)
         self.assertTrue(user.is_staff)
         self.assertTrue(user.is_active)
