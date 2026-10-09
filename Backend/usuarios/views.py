@@ -16,6 +16,7 @@ from django.contrib.auth import (
 from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework.throttling import AnonRateThrottle
 from rest_framework import serializers
 from django.db import IntegrityError
 from .models import Usuario, Role
@@ -77,6 +78,7 @@ class EsAdminParaModificar(BasePermission):
 
 
 class LoginUsuarioView(APIView):
+    throttle_classes = [AnonRateThrottle]  # TK46: límite de intentos de login
     permission_classes = [AllowAny]
     authentication_classes = []
 
@@ -91,13 +93,6 @@ class LoginUsuarioView(APIView):
 
         # 2. Django verifica si el email y la contraseña coinciden en la base de datos
         user = authenticate(request, email=email, password=password)
-
-        # TK46: django-axes bloquea temporalmente la IP después de varios intentos fallidos.
-        if getattr(request, "axes_locked_out", False):
-            return Response(
-                {"error": "Demasiados intentos fallidos. Esperá unos minutos e intentá de nuevo."},
-                status=status.HTTP_429_TOO_MANY_REQUESTS,
-            )
 
         if user is not None:
             # 3. Guardia: si la cuenta existe pero está inactiva (pendiente de aprobación)

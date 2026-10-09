@@ -15,13 +15,16 @@ SECRET_KEY = config('SECRET_KEY')
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = config('DEBUG', default=False, cast=bool)
 
-# TK46: ALLOWED_HOSTS sin comodín '*'. Por defecto solo hosts locales
-# (10.0.2.2 = la PC vista desde el emulador de Android, ADR-0006). En producción se definen en el .env.
-ALLOWED_HOSTS = config(
-    'ALLOWED_HOSTS',
-    default='localhost,127.0.0.1,10.0.2.2',
-    cast=lambda v: [s.strip() for s in v.split(',') if s.strip()]
-)
+# TK46: en desarrollo (DEBUG=True) se permite todo para emulador, celular físico y previews.
+# En producción (DEBUG=False) solo los hosts y orígenes definidos en el .env.
+if DEBUG:
+    ALLOWED_HOSTS = ['*']
+else:
+    ALLOWED_HOSTS = config(
+        'ALLOWED_HOSTS',
+        default='',
+        cast=lambda v: [s.strip() for s in v.split(',') if s.strip()]
+    )
 
 
 # Application definition
@@ -40,7 +43,6 @@ INSTALLED_APPS = [
     "ventas",
     "vendedor",
     "corsheaders",
-    "axes",  # TK46: bloqueo temporal por intentos fallidos de login
 ]
 
 MIDDLEWARE = [
@@ -53,7 +55,6 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
-    "axes.middleware.AxesMiddleware",  # TK46: va último
 ]
 
 ROOT_URLCONF = "config.urls"
@@ -112,15 +113,8 @@ AUTH_PASSWORD_VALIDATORS = [
 AUTH_USER_MODEL = 'usuarios.Usuario'
 
 AUTHENTICATION_BACKENDS = [
-    'axes.backends.AxesStandaloneBackend',  # TK46: tiene que ir primero
     'django.contrib.auth.backends.AllowAllUsersModelBackend',
 ]
-
-# TK46: límite de intentos fallidos de login (django-axes).
-AXES_FAILURE_LIMIT = config('AXES_FAILURE_LIMIT', default=5, cast=int)
-AXES_COOLOFF_TIME = timedelta(minutes=config('AXES_COOLOFF_MINUTES', default=15, cast=int))
-AXES_LOCKOUT_PARAMETERS = ['ip_address']
-AXES_RESET_ON_SUCCESS = True
 
 
 # Internationalization
@@ -148,13 +142,14 @@ STORAGES = {
         "BACKEND": "whitenoise.storage.CompressedStaticFilesStorage",
     },
 }
-# TK46 (Plan de Seguridad 6.c): CORS solo para los orígenes del frontend (Angular local y producción en Vercel).
-# La app Android no usa CORS (es una regla de los navegadores), así que no se ve afectada.
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:4200",
-    "http://127.0.0.1:4200",
-    "https://todo-stock.vercel.app",
-]
+if DEBUG:
+    CORS_ALLOW_ALL_ORIGINS = True
+else:
+    CORS_ALLOWED_ORIGINS = config(
+        'CORS_ALLOWED_ORIGINS',
+        default='',
+        cast=lambda v: [s.strip() for s in v.split(',') if s.strip()]
+    )
 REST_FRAMEWORK = {
     'EXCEPTION_HANDLER': 'inventario.exceptions.custom_exception_handler',
     'DEFAULT_AUTHENTICATION_CLASSES': [
@@ -164,6 +159,9 @@ REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',
     ],
+    'DEFAULT_THROTTLE_RATES': {
+        'anon': '5/min',  # TK46: límite de intentos de login (fuerza bruta)
+    },
 }
 
 SIMPLE_JWT = {
