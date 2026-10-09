@@ -1,5 +1,6 @@
 import os
 import sys
+import getpass
 import secrets
 import string
 from pathlib import Path
@@ -83,9 +84,7 @@ def crear_superadmin(
     if pwd_input:
         password = pwd_input
     else:
-        # TK45: sin ADMIN_PASSWORD se genera una contraseña aleatoria, también en desarrollo.
-        password = generar_password_seguro(20)
-        autogenerada = True
+        password = getpass.getpass("Ingrese clave para el admin: ")
 
     dni_default = "12345678"
     nombre = "Super Admin"

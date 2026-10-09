@@ -143,7 +143,7 @@ DB_HOST=localhost
 DB_PORT=3306
 
 # Superadministrador inicial: definí tu propia contraseña.
-# Si ADMIN_PASSWORD queda vacío, se genera una aleatoria y se muestra una sola vez por consola.
+# Si ADMIN_PASSWORD está vacío, el script pide la contraseña por consola.
 ADMIN_EMAIL=admin@codelab.com
 ADMIN_PASSWORD=tu_contraseña_segura
 ```
@@ -164,7 +164,7 @@ Este script realiza de forma integral:
 2. Ejecución de migraciones de Django.
 3. Carga automática de los roles base (`roles.json`: `ADMINISTRADOR`, `VENTAS`, `DEPOSITO`).
 4. Creación de la estructura de tablas y datos de prueba completos de inventario y stock.
-5. Creación automática del usuario superadmin con el `ADMIN_EMAIL` y `ADMIN_PASSWORD` de tu `.env` (si `ADMIN_PASSWORD` está vacío, se genera una contraseña aleatoria y se muestra una sola vez).
+5. Creación automática del usuario superadmin con el `ADMIN_EMAIL` y `ADMIN_PASSWORD` de tu `.env` (si `ADMIN_PASSWORD` está vacío, el script pide la contraseña por consola).
 
 #### Opción B — Manual
 

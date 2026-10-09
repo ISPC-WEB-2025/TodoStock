@@ -15,7 +15,7 @@ A través de la auditoría de autenticación y de las pruebas operativas en ento
 3. **Bloqueo del autoservicio de perfil:**
    Los usuarios operativos (`EMPLEADO`) no podían actualizar sus propios datos personales (nombre, fecha de nacimiento) porque `UserViewSet` rechazaba peticiones de usuarios no administradores con `403 Forbidden`, y el endpoint `/api/usuarios/me/` admitía únicamente `GET` (solo lectura).
 4. **Fragilidad en la creación del superusuario por defecto (Local vs Remoto):**
-   El script `Backend/setup_db.py` ejecuta la creación del superadmin como paso final acoplado. Si ocurrían fallos previos en scripts SQL o colisiones en campos únicos (ej. DNI fijo `12345678` preexistente), el usuario por defecto de desarrollo (`admin@codelab.com`) no se creaba o quedaba en un estado inconsistente en local.
+   El script `Backend/setup_db.py` ejecuta la creación del superadmin como paso final acoplado. Si ocurrían fallos previos en scripts SQL o colisiones en campos únicos (ej. DNI fijo `12345678` preexistente), el usuario por defecto de desarrollo (`admin@codelab.com` / `AdminPassword123!`) no se creaba o quedaba en un estado inconsistente en local.
 
 ## Decisión
 
