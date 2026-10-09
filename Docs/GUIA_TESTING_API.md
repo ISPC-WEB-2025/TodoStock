@@ -27,7 +27,7 @@ Esta guía detalla los pasos para probar manualmente los endpoints de la API RES
   ```json
   {
     "email": "admin@codelab.com",
-    "password": "AdminPassword123!"
+    "password": "<ADMIN_PASSWORD de tu .env>"
   }
   ```
 - **Respuesta esperada**: `200 OK`

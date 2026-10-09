@@ -1,5 +1,6 @@
 import os
 import sys
+import getpass
 import secrets
 import string
 from pathlib import Path
@@ -27,7 +28,6 @@ if not django.apps.apps.ready:
     django.setup()
 
 from decouple import config
-from django.conf import settings
 from usuarios.models import Usuario, Role
 
 
@@ -63,15 +63,14 @@ def crear_superadmin(
     """
     Crea o actualiza el usuario superadministrador del sistema.
     Lee las credenciales desde variables de entorno (ADMIN_EMAIL, ADMIN_PASSWORD).
-    En entornos con DEBUG=False, si no se especifica ADMIN_PASSWORD, genera una
-    contraseña segura aleatoria de alta entropía y la notifica por consola.
+    Si no se especifica ADMIN_PASSWORD, genera una contraseña segura aleatoria de
+    alta entropía y la notifica por consola una sola vez (TK45: el repositorio no
+    contiene ninguna contraseña fija, ni siquiera para desarrollo).
     """
     rol_admin, _ = Role.objects.get_or_create(
         nombre="ADMINISTRADOR",
         defaults={"descripcion": "Rol con control total del sistema"},
     )
-
-    is_debug = getattr(settings, "DEBUG", True)
 
     # 1. Determinar Email
     email_env = config("ADMIN_EMAIL", default="").strip()
@@ -84,16 +83,8 @@ def crear_superadmin(
     autogenerada = False
     if pwd_input:
         password = pwd_input
-        if not is_debug and password == "AdminPassword123!":
-            print("\n[ALERTA DE SEGURIDAD] DEBUG=False pero se esta usando la contrasena")
-            print("   por defecto 'AdminPassword123!'. Se recomienda cambiarla inmediatamente.\n")
     else:
-        if is_debug:
-            password = "AdminPassword123!"
-            print(f"\n[MODO DESARROLLO] Se utilizo la contrasena de desarrollo por defecto para {email}.")
-        else:
-            password = generar_password_seguro(20)
-            autogenerada = True
+        password = getpass.getpass("Ingrese clave para el admin: ")
 
     dni_default = "12345678"
     nombre = "Super Admin"
@@ -140,8 +131,6 @@ def crear_superadmin(
         print(f"  Password:     {password}  <-- AUTOGENERADA (ALTA ENTROPIA)")
         print("  [!] ATENCION: Guarda esta contrasena en un lugar seguro.")
         print("      No volvera a mostrarse en texto plano.")
-    elif is_debug and not pwd_input:
-        print(f"  Password:     {password}  (Credencial de desarrollo)")
     else:
         print("  Password:     [CONFIGURADA DESDE VARIABLES DE ENTORNO]")
     print(f"  Rol:          {rol_admin.nombre}")

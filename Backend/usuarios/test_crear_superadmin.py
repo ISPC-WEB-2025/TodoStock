@@ -23,19 +23,21 @@ class CrearSuperadminSecurityTests(TestCase):
         self.assertTrue(any(c in "!@#$%&*-_=+" for c in pwd))
 
     @override_settings(DEBUG=True)
+    @patch("scripts.crear_superadmin.getpass.getpass")
     @patch("scripts.crear_superadmin.config")
-    def test_crear_superadmin_dev_default(self, mock_config):
-        """En modo desarrollo (DEBUG=True) y sin variables en .env usa credenciales de desarrollo por defecto."""
+    def test_crear_superadmin_dev_sin_password_pide_consola(self, mock_config, mock_getpass):
+        """TK45: en desarrollo y sin ADMIN_PASSWORD, pide contraseña interactiva."""
         mock_config.side_effect = lambda key, default="": ""
+        mock_getpass.return_value = "ClaveSimuladaParaTest123!"
 
         resultado = crear_superadmin()
 
         self.assertEqual(resultado["email"], "admin@codelab.com")
-        self.assertEqual(resultado["password"], "AdminPassword123!")
         self.assertFalse(resultado["autogenerada"])
+        self.assertEqual(resultado["password"], "ClaveSimuladaParaTest123!")
 
         user = Usuario.objects.get(email="admin@codelab.com")
-        self.assertTrue(user.check_password("AdminPassword123!"))
+        self.assertTrue(user.check_password("ClaveSimuladaParaTest123!"))
         self.assertTrue(user.is_superuser)
         self.assertTrue(user.is_staff)
         self.assertTrue(user.is_active)
@@ -65,19 +67,21 @@ class CrearSuperadminSecurityTests(TestCase):
         self.assertTrue(user.is_superuser)
 
     @override_settings(DEBUG=False)
+    @patch("scripts.crear_superadmin.getpass.getpass")
     @patch("scripts.crear_superadmin.config")
-    def test_crear_superadmin_prod_generates_random_password(self, mock_config):
-        """En producción (DEBUG=False) y sin contraseña configurada, autogenera una segura."""
+    def test_crear_superadmin_prod_pide_consola(self, mock_config, mock_getpass):
+        """En producción (DEBUG=False) y sin contraseña configurada, pide por consola."""
         mock_config.side_effect = lambda key, default="": ""
+        mock_getpass.return_value = "ClaveSimuladaParaTest123!"
 
         resultado = crear_superadmin()
 
         self.assertEqual(resultado["email"], "admin@codelab.com")
-        self.assertTrue(resultado["autogenerada"])
-        self.assertGreaterEqual(len(resultado["password"]), 20)
+        self.assertFalse(resultado["autogenerada"])
+        self.assertEqual(resultado["password"], "ClaveSimuladaParaTest123!")
 
         user = Usuario.objects.get(email="admin@codelab.com")
-        self.assertTrue(user.check_password(resultado["password"]))
+        self.assertTrue(user.check_password("ClaveSimuladaParaTest123!"))
         self.assertTrue(user.is_superuser)
         self.assertTrue(user.is_staff)
 
