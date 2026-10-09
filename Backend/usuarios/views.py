@@ -16,6 +16,7 @@ from django.contrib.auth import (
 from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework.throttling import AnonRateThrottle
 from rest_framework import serializers
 from django.db import IntegrityError
 from .models import Usuario, Role
@@ -77,6 +78,7 @@ class EsAdminParaModificar(BasePermission):
 
 
 class LoginUsuarioView(APIView):
+    throttle_classes = [AnonRateThrottle]  # TK46: límite de intentos de login
     permission_classes = [AllowAny]
     authentication_classes = []
 

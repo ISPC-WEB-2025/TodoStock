@@ -15,12 +15,16 @@ SECRET_KEY = config('SECRET_KEY')
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = config('DEBUG', default=False, cast=bool)
 
-# ALLOWED_HOSTS configurables o abiertas para desarrollo y acceso desde red local / emuladores móviles
-ALLOWED_HOSTS = config(
-    'ALLOWED_HOSTS',
-    default='*',
-    cast=lambda v: [s.strip() for s in v.split(',') if s.strip()]
-)
+# TK46: en desarrollo (DEBUG=True) se permite todo para emulador, celular físico y previews.
+# En producción (DEBUG=False) solo los hosts y orígenes definidos en el .env.
+if DEBUG:
+    ALLOWED_HOSTS = ['*']
+else:
+    ALLOWED_HOSTS = config(
+        'ALLOWED_HOSTS',
+        default='',
+        cast=lambda v: [s.strip() for s in v.split(',') if s.strip()]
+    )
 
 
 # Application definition
@@ -138,12 +142,14 @@ STORAGES = {
         "BACKEND": "whitenoise.storage.CompressedStaticFilesStorage",
     },
 }
-# CORS - Permitir orígenes de desarrollo web y conexiones desde apps móviles
-CORS_ALLOW_ALL_ORIGINS = True
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:4200",
-    "http://127.0.0.1:4200",
-]
+if DEBUG:
+    CORS_ALLOW_ALL_ORIGINS = True
+else:
+    CORS_ALLOWED_ORIGINS = config(
+        'CORS_ALLOWED_ORIGINS',
+        default='',
+        cast=lambda v: [s.strip() for s in v.split(',') if s.strip()]
+    )
 REST_FRAMEWORK = {
     'EXCEPTION_HANDLER': 'inventario.exceptions.custom_exception_handler',
     'DEFAULT_AUTHENTICATION_CLASSES': [
@@ -153,6 +159,9 @@ REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',
     ],
+    'DEFAULT_THROTTLE_RATES': {
+        'anon': '5/min',  # TK46: límite de intentos de login (fuerza bruta)
+    },
 }
 
 SIMPLE_JWT = {
