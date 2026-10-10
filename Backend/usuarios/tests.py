@@ -708,8 +708,9 @@ class AuditoriaSeguridadTests(TestCase):
         from .views import LoginUsuarioView
 
         factory = APIRequestFactory()
-        request = factory.post("/api/usuarios/login/", {"email": "atacante@test.com", "password": "123"}, format="json")
+        raw_request = factory.post("/api/usuarios/login/", {"email": "atacante@test.com", "password": "123"}, format="json")
         view = LoginUsuarioView()
+        request = view.initialize_request(raw_request)
         view.request = request
 
         with self.assertRaises(Throttled):

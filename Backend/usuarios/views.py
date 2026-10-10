@@ -143,7 +143,21 @@ class LoginUsuarioView(APIView):
         Sobrescribe el manejador de rate limit de DRF (TK46 / TK58).
         Registra el bloqueo temporal por fuerza bruta en LogAuditoria antes de lanzar HTTP 429.
         """
-        email_intento = request.data.get("email") if hasattr(request, "data") else None
+        email_intento = None
+        if hasattr(request, "data") and isinstance(getattr(request, "data"), dict):
+            email_intento = request.data.get("email")
+        elif hasattr(request, "POST") and request.POST.get("email"):
+            email_intento = request.POST.get("email")
+        elif hasattr(request, "body") and request.body:
+            try:
+                import json
+                body_decoded = request.body.decode("utf-8") if isinstance(request.body, bytes) else request.body
+                parsed = json.loads(body_decoded)
+                if isinstance(parsed, dict):
+                    email_intento = parsed.get("email")
+            except Exception:
+                pass
+
         registrar_auditoria(
             evento="BLOQUEO_FUERZA_BRUTA",
             email=email_intento or "desconocido",
