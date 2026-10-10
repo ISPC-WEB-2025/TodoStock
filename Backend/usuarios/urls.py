@@ -1,14 +1,23 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from rest_framework_simplejwt.views import TokenRefreshView
-from .views import LoginUsuarioView, RegistroUsuarioView, UserViewSet, RoleViewSet, ContactoSoporteView
+from .views import (
+    LoginUsuarioView,
+    RegistroUsuarioView,
+    UserViewSet,
+    RoleViewSet,
+    ContactoSoporteView,
+    LogAuditoriaViewSet,
+)
 
 # 1. Registramos los viewsets en el router
 router = DefaultRouter()
-# IMPORTANTE: 'roles' se registra primero para que el DefaultRouter no lo confunda
+# IMPORTANTE: 'roles' y 'auditoria' se registran primero para que el DefaultRouter no los confunda
 # con el pk de un usuario en la ruta raiz '' (ej: /api/usuarios/roles/ vs /api/usuarios/<pk>/)
 router.register(r'roles', RoleViewSet, basename='role')
+router.register(r'auditoria', LogAuditoriaViewSet, basename='auditoria')
 router.register(r'', UserViewSet, basename='usuario')
+
 
 urlpatterns = [
     # 2. La ruta de login

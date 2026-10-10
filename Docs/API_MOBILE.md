@@ -96,7 +96,7 @@ Actualiza los datos personales propios. Campos sensibles (`rol`, `email`, `is_ac
 - **Respuesta 200:** perfil actualizado.
 
 #### `DELETE /api/usuarios/me/`
-Desactiva la cuenta propia (`is_active = False`). No borra el registro. El admin puede reactivarla (US11).
+Desactiva la cuenta propia (`is_active = False`) y registra automáticamente el evento `BAJA_CUENTA` en la tabla `LogAuditoria` con fecha y usuario (TK51/TK59). No borra el registro. El admin puede reactivarla (US11).
 - **Respuesta 200:** `{ "mensaje": "Cuenta desactivada. El administrador puede reactivarla cuando lo solicites." }`
 
 #### `POST /api/usuarios/me/change-password/`
@@ -133,16 +133,41 @@ Envía una consulta de soporte. Se registra en el log del servidor. No requiere 
 - **Desacople de contraseñas:** El endpoint `PUT/PATCH /api/usuarios/<id>/` ignora el campo `password`. La gestión de contraseñas de terceros se canaliza exclusivamente por `/reset-password/`.
 
 #### `GET /api/usuarios/`
-Lista todos los usuarios. Requiere auth. Solo admins pueden modificar.
+Lista todos los usuarios del sistema. Acceso exclusivo a Administradores (`es_admin=True` o `is_superuser=True`). Empleados reciben `403 Forbidden` (US14 / RNF-SEG).
 - Cada usuario incluye: `id`, `email`, `nombre`, `dni`, `fecha_nacimiento`, `rol`, `is_active`, `is_superuser`.
 
 #### `PUT /api/usuarios/<id>/`
 Edita un usuario. Solo admins. Para aprobar una cuenta, enviar `{ "is_active": true, "rol_id": 2 }`.
 
 #### `DELETE /api/usuarios/<id>/`
-Baja lógica: `is_active = False`. Solo admins. No borra el registro.
+Baja lógica: `is_active = False` y asienta el evento `BAJA_USUARIO` en `LogAuditoria`. Solo admins. No borra el registro.
 
 #### `POST /api/usuarios/<id>/reset-password/`
+Reseteo administrativo de contraseña. Solo admins sobre cuentas operativas. Superadmin sobre cualquier cuenta.
+
+---
+
+### 4.3 Auditoría de Seguridad y Trazabilidad (Admin — TK51 / ADR-0009)
+
+#### `GET /api/usuarios/auditoria/`
+Consulta de eventos de auditoría y seguridad. Solo lectura. Acceso estrictamente reservado a Administradores (`EsAdministrador`). Empleados reciben `403 Forbidden`.
+- **Headers:** `Authorization: Bearer <access_token>`
+- **Respuesta 200 OK:**
+  ```json
+  [
+    {
+      "id": 1,
+      "fecha_hora": "2026-10-10T16:20:00Z",
+      "usuario": 4,
+      "usuario_email": "test_aylen4@correo.com",
+      "evento": "BAJA_CUENTA",
+      "evento_display": "Baja voluntaria de cuenta",
+      "descripcion": "Baja voluntaria de cuenta solicitada por el propio usuario (test_aylen4@correo.com).",
+      "ip_origen": "192.168.1.50"
+    }
+  ]
+  ```
+
 Reseteo administrativo de contraseñas (US08 / ADR-0008).
 - **Headers:** `Authorization: Bearer <access_token>` (Admin o Superuser)
 - **Body:** `{ "nueva_password": "NuevaPasswordRobusta1!" }`
