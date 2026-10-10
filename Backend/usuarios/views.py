@@ -138,9 +138,24 @@ class LoginUsuarioView(APIView):
     permission_classes = [AllowAny]
     authentication_classes = []
 
+    def throttled(self, request, wait):
+        """
+        Sobrescribe el manejador de rate limit de DRF (TK46 / TK58).
+        Registra el bloqueo temporal por fuerza bruta en LogAuditoria antes de lanzar HTTP 429.
+        """
+        email_intento = request.data.get("email") if hasattr(request, "data") else None
+        registrar_auditoria(
+            evento="BLOQUEO_FUERZA_BRUTA",
+            email=email_intento or "desconocido",
+            descripcion=f"Login bloqueado temporalmente por exceso de intentos (fuerza bruta). Tiempo de espera requerido: {wait} segundos.",
+            request=request,
+        )
+        super().throttled(request, wait)
+
     def post(
         self, request
     ):  # define vista, solo recibe post, no get (ej barra de naveg) / request contiene lo que envía Angular
+
         # 1. Capturamos los datos que nos va a mandar el cliente
         email = request.data.get("email")
         password = request.data.get(

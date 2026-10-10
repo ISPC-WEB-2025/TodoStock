@@ -702,5 +702,26 @@ class AuditoriaSeguridadTests(TestCase):
         resp_adm = self.client.get("/api/usuarios/")
         self.assertEqual(resp_adm.status_code, status.HTTP_200_OK)
 
+    def test_bloqueo_fuerza_bruta_asienta_auditoria(self):
+        from rest_framework.exceptions import Throttled
+        from rest_framework.test import APIRequestFactory
+        from .views import LoginUsuarioView
+
+        factory = APIRequestFactory()
+        request = factory.post("/api/usuarios/login/", {"email": "atacante@test.com", "password": "123"}, format="json")
+        view = LoginUsuarioView()
+        view.request = request
+
+        with self.assertRaises(Throttled):
+            view.throttled(request, wait=60)
+
+        log = LogAuditoria.objects.filter(
+            evento="BLOQUEO_FUERZA_BRUTA", usuario_email="atacante@test.com"
+        ).first()
+        self.assertIsNotNone(log)
+        self.assertIn("fuerza bruta", log.descripcion)
+        self.assertIn("60 segundos", log.descripcion)
+
+
 
 
