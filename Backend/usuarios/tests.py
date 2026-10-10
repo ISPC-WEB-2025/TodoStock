@@ -1,7 +1,7 @@
 from django.test import TestCase
 from rest_framework.test import APIClient
 from rest_framework import status
-from .models import Usuario, Role
+from .models import Usuario, Role, LogAuditoria
 
 
 class JWTAuthenticationTests(TestCase):
@@ -590,5 +590,138 @@ class AuthRobustezTests(TestCase):
         self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("error", resp.data)
         self.assertIn("propia cuenta", resp.data["error"])
+
+
+class AuditoriaSeguridadTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.rol_admin, _ = Role.objects.get_or_create(
+            nombre="ADMINISTRADOR", defaults={"descripcion": "Rol Admin"}
+        )
+        self.rol_empleado, _ = Role.objects.get_or_create(
+            nombre="EMPLEADO", defaults={"descripcion": "Rol Empleado"}
+        )
+
+        self.admin = Usuario.objects.create_user(
+            email="admin_auditoria@test.com",
+            nombre="Admin Auditoria",
+            dni="11122233",
+            fecha_nacimiento="1990-01-01",
+            password="AdminPassword123!",
+            rol=self.rol_admin,
+            is_staff=True,
+        )
+
+        self.empleado = Usuario.objects.create_user(
+            email="empleado_auditoria@test.com",
+            nombre="Empleado Auditoria",
+            dni="44455566",
+            fecha_nacimiento="1995-05-05",
+            password="EmpleadoPassword123!",
+            rol=self.rol_empleado,
+        )
+
+    def test_baja_cuenta_crea_log_auditoria(self):
+        login_resp = self.client.post(
+            "/api/usuarios/login/",
+            {"email": "empleado_auditoria@test.com", "password": "EmpleadoPassword123!"},
+            format="json",
+        )
+        token = login_resp.data["access"]
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+
+        resp = self.client.delete("/api/usuarios/me/")
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+
+        self.empleado.refresh_from_db()
+        self.assertFalse(self.empleado.is_active)
+
+        log = LogAuditoria.objects.filter(
+            evento="BAJA_CUENTA", usuario_email="empleado_auditoria@test.com"
+        ).first()
+        self.assertIsNotNone(log)
+        self.assertEqual(log.usuario, self.empleado)
+        self.assertIn("Baja voluntaria", log.descripcion)
+
+    def test_solo_admin_puede_consultar_auditoria(self):
+        LogAuditoria.objects.create(
+            usuario=self.empleado,
+            usuario_email="empleado_auditoria@test.com",
+            evento="LOGIN_EXITOSO",
+            descripcion="Prueba",
+        )
+
+        # 1. Consulta anónima -> 401
+        self.client.credentials()
+        resp_anon = self.client.get("/api/usuarios/auditoria/")
+        self.assertEqual(resp_anon.status_code, status.HTTP_401_UNAUTHORIZED)
+
+        # 2. Consulta como Empleado -> 403
+        login_emp = self.client.post(
+            "/api/usuarios/login/",
+            {"email": "empleado_auditoria@test.com", "password": "EmpleadoPassword123!"},
+            format="json",
+        )
+        token_emp = login_emp.data["access"]
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {token_emp}")
+        resp_emp = self.client.get("/api/usuarios/auditoria/")
+        self.assertEqual(resp_emp.status_code, status.HTTP_403_FORBIDDEN)
+
+        # 3. Consulta como Administrador -> 200 OK
+        login_adm = self.client.post(
+            "/api/usuarios/login/",
+            {"email": "admin_auditoria@test.com", "password": "AdminPassword123!"},
+            format="json",
+        )
+        token_adm = login_adm.data["access"]
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {token_adm}")
+        resp_adm = self.client.get("/api/usuarios/auditoria/")
+        self.assertEqual(resp_adm.status_code, status.HTTP_200_OK)
+        self.assertTrue(len(resp_adm.data) >= 1)
+
+    def test_empleado_no_puede_listar_padron_usuarios(self):
+        # Empleado no puede listar usuarios -> 403
+        login_emp = self.client.post(
+            "/api/usuarios/login/",
+            {"email": "empleado_auditoria@test.com", "password": "EmpleadoPassword123!"},
+            format="json",
+        )
+        token_emp = login_emp.data["access"]
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {token_emp}")
+        resp_emp = self.client.get("/api/usuarios/")
+        self.assertEqual(resp_emp.status_code, status.HTTP_403_FORBIDDEN)
+
+        # Administrador sí puede listar usuarios -> 200 OK
+        login_adm = self.client.post(
+            "/api/usuarios/login/",
+            {"email": "admin_auditoria@test.com", "password": "AdminPassword123!"},
+            format="json",
+        )
+        token_adm = login_adm.data["access"]
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {token_adm}")
+        resp_adm = self.client.get("/api/usuarios/")
+        self.assertEqual(resp_adm.status_code, status.HTTP_200_OK)
+
+    def test_bloqueo_fuerza_bruta_asienta_auditoria(self):
+        from rest_framework.exceptions import Throttled
+        from rest_framework.test import APIRequestFactory
+        from .views import LoginUsuarioView
+
+        factory = APIRequestFactory()
+        request = factory.post("/api/usuarios/login/", {"email": "atacante@test.com", "password": "123"}, format="json")
+        view = LoginUsuarioView()
+        view.request = request
+
+        with self.assertRaises(Throttled):
+            view.throttled(request, wait=60)
+
+        log = LogAuditoria.objects.filter(
+            evento="BLOQUEO_FUERZA_BRUTA", usuario_email="atacante@test.com"
+        ).first()
+        self.assertIsNotNone(log)
+        self.assertIn("fuerza bruta", log.descripcion)
+        self.assertIn("60 segundos", log.descripcion)
+
+
 
 

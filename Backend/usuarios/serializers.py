@@ -1,7 +1,7 @@
 import re
 import string
 from rest_framework import serializers
-from .models import Role, Usuario
+from .models import Role, Usuario, LogAuditoria
 
 
 def validar_password_robusta(password: str) -> None:
@@ -216,4 +216,23 @@ class RegistroUsuarioSerializer(serializers.ModelSerializer):
             is_active=False,
             rol=None,
         )
+
+
+class LogAuditoriaSerializer(serializers.ModelSerializer):
+    evento_display = serializers.CharField(source="get_evento_display", read_only=True)
+
+    class Meta:
+        model = LogAuditoria
+        fields = [
+            "id",
+            "fecha_hora",
+            "usuario",
+            "usuario_email",
+            "evento",
+            "evento_display",
+            "descripcion",
+            "ip_origen",
+        ]
+        read_only_fields = fields
+
 

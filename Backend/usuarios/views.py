@@ -19,18 +19,38 @@ from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.throttling import AnonRateThrottle
 from rest_framework import serializers
 from django.db import IntegrityError
-from .models import Usuario, Role
+from .models import Usuario, Role, LogAuditoria
 from .serializers import (
     UsuarioSerializer,
     PerfilUsuarioSerializer,
     RoleSerializer,
     CambiarPasswordSerializer,
     RegistroUsuarioSerializer,
+    LogAuditoriaSerializer,
     validar_password_robusta,
 )
+from .services import registrar_auditoria
 from rest_framework.permissions import BasePermission, SAFE_METHODS
 
 logger = logging.getLogger(__name__)
+
+
+class EsAdministrador(BasePermission):
+    """
+    Permite acceso únicamente a usuarios autenticados con rol Administrador o Superusuario.
+    Aplica tanto a métodos de lectura (GET) como de escritura (TK51).
+    """
+    message = "Acceso exclusivo para el Administrador."
+
+    def has_permission(self, request, view):
+        return bool(
+            request.user
+            and request.user.is_authenticated
+            and (getattr(request.user, "es_admin", False) or getattr(request.user, "is_superuser", False))
+        )
+
+    def has_object_permission(self, request, view, obj):
+        return self.has_permission(request, view)
 
 
 class EsAdminParaModificar(BasePermission):
@@ -77,14 +97,65 @@ class EsAdminParaModificar(BasePermission):
         )
 
 
+class EsAdminPadronUsuarios(BasePermission):
+    """
+    Blindaje de padrón de usuarios (US14 / RNF-SEG):
+    - Únicamente los Administradores pueden listar o consultar el padrón de usuarios (GET).
+    - Aplica jerarquía estricta (ADR-0008) sobre operaciones de modificación y desactivación.
+    - Protege datos personales de empleados contra accesos de operadores sin privilegios.
+    """
+    message = "Acceso exclusivo para el Administrador."
+
+    def has_permission(self, request, view):
+        return bool(
+            request.user
+            and request.user.is_authenticated
+            and (getattr(request.user, "es_admin", False) or getattr(request.user, "is_superuser", False))
+        )
+
+    def has_object_permission(self, request, view, obj):
+        if not self.has_permission(request, view):
+            return False
+
+        if isinstance(obj, Usuario):
+            # Nadie puede desactivar al superusuario raíz
+            if obj.is_superuser and request.method == "DELETE":
+                self.message = "No se puede desactivar la cuenta del Super Administrador principal."
+                return False
+
+            # Si el target es Administrador o Superusuario distinto a uno mismo, solo el Super Administrador puede operar sobre él
+            target_es_admin = getattr(obj, "es_admin", False) or getattr(obj, "is_superuser", False)
+            if target_es_admin and obj != request.user and not getattr(request.user, "is_superuser", False):
+                self.message = "Acción reservada al Super Administrador."
+                return False
+
+        return True
+
+
+
 class LoginUsuarioView(APIView):
     throttle_classes = [AnonRateThrottle]  # TK46: límite de intentos de login
     permission_classes = [AllowAny]
     authentication_classes = []
 
+    def throttled(self, request, wait):
+        """
+        Sobrescribe el manejador de rate limit de DRF (TK46 / TK58).
+        Registra el bloqueo temporal por fuerza bruta en LogAuditoria antes de lanzar HTTP 429.
+        """
+        email_intento = request.data.get("email") if hasattr(request, "data") else None
+        registrar_auditoria(
+            evento="BLOQUEO_FUERZA_BRUTA",
+            email=email_intento or "desconocido",
+            descripcion=f"Login bloqueado temporalmente por exceso de intentos (fuerza bruta). Tiempo de espera requerido: {wait} segundos.",
+            request=request,
+        )
+        super().throttled(request, wait)
+
     def post(
         self, request
     ):  # define vista, solo recibe post, no get (ej barra de naveg) / request contiene lo que envía Angular
+
         # 1. Capturamos los datos que nos va a mandar el cliente
         email = request.data.get("email")
         password = request.data.get(
@@ -97,6 +168,13 @@ class LoginUsuarioView(APIView):
         if user is not None:
             # 3. Guardia: si la cuenta existe pero está inactiva (pendiente de aprobación)
             if not user.is_active:
+                registrar_auditoria(
+                    evento="LOGIN_FALLIDO",
+                    usuario=user,
+                    email=user.email,
+                    descripcion="Intento de acceso rechazado: cuenta inactiva o pendiente de aprobación.",
+                    request=request,
+                )
                 return Response(
                     {"error": "Cuenta pendiente de aprobación por el administrador."},
                     status=status.HTTP_403_FORBIDDEN,
@@ -106,6 +184,14 @@ class LoginUsuarioView(APIView):
             refresh = RefreshToken.for_user(user)
             access_token = str(refresh.access_token)
             refresh_token = str(refresh)
+
+            registrar_auditoria(
+                evento="LOGIN_EXITOSO",
+                usuario=user,
+                email=user.email,
+                descripcion="Inicio de sesión exitoso.",
+                request=request,
+            )
 
             return Response(
                 {
@@ -122,6 +208,12 @@ class LoginUsuarioView(APIView):
                 status=status.HTTP_200_OK,
             )
         else:
+            registrar_auditoria(
+                evento="LOGIN_FALLIDO",
+                email=email or "desconocido",
+                descripcion="Intento de inicio de sesión fallido con credenciales inválidas.",
+                request=request,
+            )
             return Response(
                 {"error": "Email o contraseña incorrectos."},
                 status=status.HTTP_401_UNAUTHORIZED,
@@ -154,7 +246,14 @@ class RegistroUsuarioView(APIView):
             )
 
         try:
-            serializer.save()
+            nuevo_usuario = serializer.save()
+            registrar_auditoria(
+                evento="ALTA_USUARIO",
+                usuario=nuevo_usuario,
+                email=nuevo_usuario.email,
+                descripcion="Nuevo usuario registrado (cuenta inactiva pendiente de aprobación).",
+                request=request,
+            )
         except IntegrityError:
             return Response(
                 {"error": "El DNI o email ya se encuentra registrado."},
@@ -167,19 +266,55 @@ class RegistroUsuarioView(APIView):
         )
 
 
-# --- VISTA DEL CRUD DE USUARIOS (TK58) ---
+
+# --- VISTA DEL CRUD DE USUARIOS (TK58 / ADR-0008 / US14) ---
 class UserViewSet(viewsets.ModelViewSet):
     queryset = Usuario.objects.all()
     serializer_class = UsuarioSerializer
     permission_classes = [
-        EsAdminParaModificar
-    ]  # Solo los admins pueden modificar, pero todos los usuarios logueados pueden ver la lista de usuarios
+        EsAdminPadronUsuarios
+    ]  # Solo los administradores pueden listar y gestionar el padrón de usuarios (US14/RNF-SEG)
+
+    def perform_update(self, serializer):
+        usuario_previo = self.get_object()
+        rol_previo = usuario_previo.rol.nombre if usuario_previo.rol else "Sin rol"
+        activo_previo = usuario_previo.is_active
+
+        instancia = serializer.save()
+
+        rol_nuevo = instancia.rol.nombre if instancia.rol else "Sin rol"
+        activo_nuevo = instancia.is_active
+
+        if rol_previo != rol_nuevo:
+            registrar_auditoria(
+                evento="CAMBIO_ROL",
+                usuario=instancia,
+                email=instancia.email,
+                descripcion=f"Rol modificado de '{rol_previo}' a '{rol_nuevo}' por {self.request.user.email}.",
+                request=self.request,
+            )
+
+        if not activo_previo and activo_nuevo:
+            registrar_auditoria(
+                evento="ALTA_USUARIO",
+                usuario=instancia,
+                email=instancia.email,
+                descripcion=f"Cuenta activada/aprobada por {self.request.user.email}.",
+                request=self.request,
+            )
 
     # Sobreescribimos solo destroy para no borrar sino desactivar
     def destroy(self, request, *args, **kwargs):
         usuario = self.get_object()
         usuario.is_active = False
         usuario.save()
+        registrar_auditoria(
+            evento="BAJA_USUARIO",
+            usuario=usuario,
+            email=usuario.email,
+            descripcion=f"Usuario desactivado administrativamente por {request.user.email}.",
+            request=request,
+        )
         return Response(
             {"mensaje": "Usuario desactivado correctamente."}, status=status.HTTP_200_OK
         )
@@ -196,7 +331,7 @@ class UserViewSet(viewsets.ModelViewSet):
         PATCH — Actualiza datos personales propios (nombre, dni, fecha_nacimiento).
                 Campos sensibles (rol, email, is_active, is_superuser) son ignorados.
         DELETE — Desactiva la cuenta propia (is_active=False). No borra el registro.
-        Implementa ADR-0008 (autoservicio de perfil).
+        Implementa ADR-0008 (autoservicio de perfil) y asienta evento en LogAuditoria (TK51/TK59).
         """
         if request.method == "GET":
             serializer = self.get_serializer(request.user)
@@ -219,8 +354,19 @@ class UserViewSet(viewsets.ModelViewSet):
                     {"error": "No se puede desactivar la cuenta del Super Administrador principal."},
                     status=status.HTTP_403_FORBIDDEN,
                 )
-            request.user.is_active = False
-            request.user.save()
+            user_a_desactivar = request.user
+            user_email = user_a_desactivar.email
+            user_a_desactivar.is_active = False
+            user_a_desactivar.save()
+
+            registrar_auditoria(
+                evento="BAJA_CUENTA",
+                usuario=user_a_desactivar,
+                email=user_email,
+                descripcion=f"Baja voluntaria de cuenta solicitada por el propio usuario ({user_email}).",
+                request=request,
+            )
+
             return Response(
                 {"mensaje": "Cuenta desactivada. El administrador puede reactivarla cuando lo solicites."},
                 status=status.HTTP_200_OK,
@@ -259,6 +405,14 @@ class UserViewSet(viewsets.ModelViewSet):
 
         request.user.set_password(nueva_password)
         request.user.save()
+
+        registrar_auditoria(
+            evento="CAMBIO_PASSWORD",
+            usuario=request.user,
+            email=request.user.email,
+            descripcion="El usuario actualizó exitosamente su propia contraseña.",
+            request=request,
+        )
 
         return Response(
             {"mensaje": "Contraseña actualizada exitosamente."},
@@ -303,10 +457,30 @@ class UserViewSet(viewsets.ModelViewSet):
         usuario.set_password(nueva_password)
         usuario.save()
 
+        registrar_auditoria(
+            evento="CAMBIO_PASSWORD",
+            usuario=usuario,
+            email=usuario.email,
+            descripcion=f"Contraseña restablecida administrativamente por {request.user.email}.",
+            request=request,
+        )
+
         return Response(
             {"mensaje": f"Contraseña del usuario '{usuario.email}' restablecida exitosamente."},
             status=status.HTTP_200_OK,
         )
+
+
+# --- AUDITORÍA DE SEGURIDAD (TK51 / US14) ---
+class LogAuditoriaViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    GET /api/usuarios/auditoria/ — Consulta de eventos de seguridad y trazabilidad.
+    Solo lectura. Acceso estrictamente reservado a administradores (EsAdministrador).
+    """
+    queryset = LogAuditoria.objects.all().order_by("-fecha_hora")
+    serializer_class = LogAuditoriaSerializer
+    permission_classes = [EsAdministrador]
+
 
 
 # --- ROLES (solo lectura — para selectores en la app mobile) ---
