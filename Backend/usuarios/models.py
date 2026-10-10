@@ -119,3 +119,61 @@ class Usuario(AbstractBaseUser, PermissionsMixin):
             "ventas",
             "deposito",
         ]
+
+
+class LogAuditoria(models.Model):
+    EVENTOS_CHOICES = [
+        ("BAJA_CUENTA", "Baja voluntaria de cuenta"),
+        ("BAJA_USUARIO", "Baja administrativa de usuario"),
+        ("ALTA_USUARIO", "Alta de nuevo usuario"),
+        ("LOGIN_EXITOSO", "Inicio de sesión exitoso"),
+        ("LOGIN_FALLIDO", "Intento de inicio de sesión fallido"),
+        ("BLOQUEO_FUERZA_BRUTA", "Bloqueo por exceso de intentos"),
+        ("CAMBIO_ROL", "Cambio de rol de usuario"),
+        ("CAMBIO_PASSWORD", "Cambio o reseteo de contraseña"),
+        ("MOVIMIENTO_STOCK", "Movimiento de stock registrado"),
+    ]
+
+    fecha_hora = models.DateTimeField(
+        auto_now_add=True,
+        db_index=True,
+        help_text="Fecha y hora exacta en que ocurrió el evento.",
+    )
+    usuario = models.ForeignKey(
+        Usuario,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="logs_auditoria",
+        help_text="Usuario asociado al evento si existe en el sistema.",
+    )
+    usuario_email = models.CharField(
+        max_length=254,
+        db_index=True,
+        help_text="Correo electrónico involucrado en el evento (preservado aun si el usuario se elimina o no existe).",
+    )
+    evento = models.CharField(
+        max_length=50,
+        choices=EVENTOS_CHOICES,
+        db_index=True,
+        help_text="Tipo de evento de seguridad auditado.",
+    )
+    descripcion = models.TextField(
+        blank=True,
+        help_text="Detalle descriptivo o contexto del evento.",
+    )
+    ip_origen = models.GenericIPAddressField(
+        null=True,
+        blank=True,
+        help_text="Dirección IP de origen de la solicitud HTTP.",
+    )
+
+    class Meta:
+        db_table = "usuarios_log_auditoria"
+        ordering = ["-fecha_hora"]
+        verbose_name = "Log de Auditoría"
+        verbose_name_plural = "Logs de Auditoría"
+
+    def __str__(self):
+        return f"[{self.fecha_hora.strftime('%Y-%m-%d %H:%M:%S')}] {self.evento} - {self.usuario_email}"
+
