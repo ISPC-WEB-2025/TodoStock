@@ -48,3 +48,5 @@ Los ADRs registran decisiones de arquitectura, no el progreso del backlog:
 | **0007** | [Unificación operativa de roles Depósito y Vendedor para Frontend Mobile](./0007-unificacion-roles-deposito-vendedor-en-empleado.md) | `Aceptado` | `feature/adr-mobile-y-unificacion-roles` |
 | **0008** | [Blindaje de jerarquía administrativa, autoservicio de perfil y superusuario](./0008-blindaje-jerarquia-admin-y-autoservicio-perfil.md) | `Aceptado` | `feature/blindaje-jerarquia-admin-perfil` |
 | **0009** | [Modelo de Log de Auditoría Desacoplado y Registro de Eventos de Seguridad](./0009-modelo-log-auditoria-desacoplado.md) | `Aceptado` | `feature/log-auditoria-seguridad` |
+| **0010** | [Baja Lógica de Productos y Preservación de Trazabilidad](./0010-baja-logica-productos.md) | `Propuesto` | `feature/baja-logica-productos-322` |
+
